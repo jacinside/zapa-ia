@@ -23,6 +23,23 @@ CREATE TABLE IF NOT EXISTS windows (
     PRIMARY KEY (path, widx)
 );
 CREATE INDEX IF NOT EXISTS idx_win_path ON windows(path);
+
+-- Segmentos musicales presentados a un humano (varias ventanas, bordes libres).
+-- Aditivo: no toca files/windows. Ver docs/review-2026-09-12.md §3.
+CREATE TABLE IF NOT EXISTS segmentos (
+    id INTEGER PRIMARY KEY, path TEXT, start REAL, end REAL,
+    origen TEXT, fver INTEGER, creado REAL,
+    UNIQUE (path, start, end)
+);
+-- Comparaciones pareadas. eleccion NULL = todavía sin responder.
+CREATE TABLE IF NOT EXISTS pares (
+    id INTEGER PRIMARY KEY, lote INTEGER, num INTEGER,
+    seg_a INTEGER, seg_b INTEGER, tipo TEXT,
+    eleccion TEXT, tags TEXT, ts REAL, fver INTEGER,
+    FOREIGN KEY (seg_a) REFERENCES segmentos(id),
+    FOREIGN KEY (seg_b) REFERENCES segmentos(id)
+);
+PRAGMA user_version = 1;
 """
 
 

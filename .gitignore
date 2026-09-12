@@ -23,3 +23,6 @@ log.txt
 
 # CLAUDE.md sí va en este repo (el gitignore global lo excluye por defecto)
 !CLAUDE.md
+
+# clips y lotes de comparación A/B
+feedback/

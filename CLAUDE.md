@@ -82,6 +82,13 @@ Usar siempre `.venv/bin/python`: el Python del sistema es 3.14 y no corre `tenso
 .venv/bin/python -m zapaia diag nebulosa    # ¿alguna feature no discrimina?
 .venv/bin/python -m zapaia eval nebulosa    # ¿dónde caen las refs de refs.txt?
 .venv/bin/python -m zapaia dupes nebulosa   # duplicados
+
+# 4. FEEDBACK HUMANO PAREADO — la fuente de etiquetas que funciona
+.venv/bin/python -m zapaia comparar nebulosa --modo veto --min-win 4 --n 20 --drive   # lote al celular
+.venv/bin/python -m zapaia comparar nebulosa --modo veto --min-win 4 --n 10           # escuchar acá (afplay)
+.venv/bin/python -m zapaia feedback importar "1 A, 2 B, 3 ninguno, 4 ambos" --lote 1  # tal cual llega por WhatsApp
+.venv/bin/python -m zapaia feedback pendientes
+.venv/bin/python -m zapaia feedback resumen --modo veto --min-win 4   # Bradley–Terry + qué dimensión predice el criterio
 ```
 
 **Cambiar pesos, modo u orden NO requiere reprocesar** — para eso existe el caché, `rank` es
@@ -338,6 +345,34 @@ creatividad) vs `muestra_B` (creatividad 0.40) comparten 6 de 10 tramos justamen
 configurado. **El MCP de Drive no sirve para esto**: sube pasando el contenido en base64 por la
 conversación y un clip de 20 s ya cuesta ~53 mil tokens. Ojo que rclone usa un client_id
 compartido que deja de funcionar durante 2026; habrá que crear uno propio.
+
+## Feedback pareado (`zapaia comparar` / `zapaia feedback`)
+
+Preguntar "¿qué tan creativo es esto?" no produjo respuestas; mostrar A contra B y preguntar
+"¿cuál rescatarías?" sí. `feedback.py` convierte eso en datos:
+
+- **Candidatos**: un segmento por archivo, la mejor tirada contigua de `--seg-win` ventanas
+  (default 2 = 60 s) elegida por **ejecución limpia** (sin `tonal_outlier`): queremos comparar
+  ideas, no castigar cromatismos antes de que el humano opine. Se exportan `--dur` s (default 40)
+  desde ahí, con el corte pegado al beat.
+- **Muestreo** (`muestrear_pares`): 50% *parejos* (score compuesto parecido, temas distintos por
+  `temas_por_nombre` y distinto grupo de dedupe → máxima información por respuesta), 30% al azar
+  (calibra), 20% *gem_vs_perf* (interés alto/ejecución baja contra lo inverso → responde la
+  pregunta estratégica del review). Nunca repite un par ya mostrado.
+- **Dos modos**: `afplay` en la máquina, o `--drive` que sube `lote_NNN/par_NNN_{A,B}.mp3` +
+  `lote.txt` a `Seleccion IA - compilados/feedback/` con rclone. Las respuestas vuelven por
+  WhatsApp y `feedback importar "1 A, 2 b; 3 ninguno"` las parsea tal cual (tolera `:`, `-`,
+  `ambas`, `los dos`).
+- **Tablas** (aditivas, `PRAGMA user_version = 1`): `segmentos(path, start, end)` y
+  `pares(lote, num, seg_a, seg_b, tipo, eleccion, fver)`. `eleccion NULL` = pendiente. Cada
+  respuesta guarda `fver` para poder reentrenar sin ambigüedad cuando cambien las features.
+- **`feedback resumen`**: Bradley–Terry (MM de Hunter, prior débil) → score latente por
+  segmento; Spearman contra cada dimensión y composite; tasa de victoria de la gema en los pares
+  `gem_vs_perf`. **Es lo que reemplaza el ajuste manual de pesos.** Con <30 respuestas es
+  orientativo; con 150–300 se puede entrenar una regresión logística sobre diferencias de features
+  (P6). `ambos`/`ninguno` cuentan como empate.
+
+El `lote.txt` no muestra scores ni el tipo de par, para no sesgar la escucha.
 
 ## Ground truth: de dónde salen las etiquetas
 

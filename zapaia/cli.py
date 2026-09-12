@@ -2,12 +2,14 @@
 import argparse
 import os
 import random
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from pydub import AudioSegment
 
 from . import cache, compilado, dedupe, score as scoring
 from .audio import load_mono, windows
@@ -313,6 +315,196 @@ def cmd_compilado(a):
     print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}")
 
 
+DRIVE_FEEDBACK = "gdrive:Zapadas New/Nebulosa/Seleccion IA - compilados/feedback"
+
+
+def _mmss(s):
+    return "%d:%02d" % (int(s) // 60, int(s) % 60)
+
+
+def cmd_comparar(a):
+    """Arma un lote de pares A/B y lo hace escuchar (afplay) o lo sube a Drive."""
+    from . import feedback as fb
+    con, dfw, files = _load(a)
+    d = _agg(a, dfw, files)
+    if a.min_win:
+        d = d[d["n_win"] >= a.min_win]
+    root = str(Path(a.root).resolve())
+    temas = dedupe.temas_por_nombre([os.path.basename(p) for p in _mp3s(a.root)])
+    grupos = dedupe.find_groups(cache.load_signatures(con, root))
+    # El tramo de cada archivo se elige por ejecución LIMPIA: queremos comparar
+    # ideas, no castigar cromatismos antes de que el humano opine.
+    c = fb.candidatos(dfw, d, a.seg_win, a.win, col="ejec_limpia")
+    if len(c) < 4:
+        sys.exit("Muy pocos candidatos. Bajá --seg-win o --min-win.")
+    pares = fb.muestrear_pares(c, a.n, temas, grupos, seed=a.seed,
+                               ya_vistos=fb.pares_vistos(con))
+    if not pares:
+        sys.exit("No quedan pares nuevos con estos criterios.")
+
+    lote = fb.nuevo_lote(con)
+    outdir = Path(a.out_dir) / f"lote_{lote:03d}"
+    outdir.mkdir(parents=True, exist_ok=True)
+    print(f"Lote {lote}: {len(pares)} pares, clips de {a.dur:.0f}s -> {outdir}\n")
+
+    lineas = [f"LOTE {lote} — ¿cuál rescatarías? Respondé: '{'{'}num{'}'} A' / B / ambos / ninguno",
+              "(por ejemplo: 1 A, 2 B, 3 ninguno, 4 ambos)", ""]
+    registro = []
+    for num, (i, j, tipo) in enumerate(pares, start=1):
+        fa, fb_ = c.loc[i], c.loc[j]
+        clips = {}
+        for lado, r in (("A", fa), ("B", fb_)):
+            seg = fb.segmento_id(con, r["Ruta"], r["start"], r["end"])
+            out = outdir / f"par_{num:03d}_{lado}.mp3"
+            ini, dur = fb.exportar_clip(r["Ruta"], r["start"], a.dur, str(out),
+                                        snap=not a.sin_snap)
+            clips[lado] = (seg, str(out), r["Toma"], ini)
+        fb.guardar_par(con, lote, num, clips["A"][0], clips["B"][0], tipo)
+        lineas.append(f"{num:03d}  A: {clips['A'][2]} ({_mmss(clips['A'][3])})   "
+                      f"B: {clips['B'][2]} ({_mmss(clips['B'][3])})")
+        registro.append((num, clips))
+        print(f"  {num:03d}  A: {clips['A'][2][:40]:42s} B: {clips['B'][2][:40]}")
+    (outdir / "lote.txt").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+
+    if a.un_mp3 or a.drive:
+        # Un solo archivo con todo el lote: en el celular es mucho más cómodo que 2N clips.
+        todo = outdir / f"lote_{lote:03d}_completo.mp3"
+        indice = fb.armar_lote_mp3([(num, cl["A"][1], cl["B"][1]) for num, cl in registro],
+                                   str(todo))
+        por_par = {}
+        for num, lado, seg in indice:
+            por_par.setdefault(num, {})[lado] = seg
+        lineas_idx = [f"LOTE {lote} — un solo MP3. Tono agudo = A, grave = B.", ""]
+        for num, cl in registro:
+            lineas_idx.append(f"{num:03d}  {_mmss(por_par[num]['A'])} A: {cl['A'][2]}"
+                              f"   |   {_mmss(por_par[num]['B'])} B: {cl['B'][2]}")
+        (outdir / f"lote_{lote:03d}_completo.txt").write_text("\n".join(lineas_idx) + "\n",
+                                                               encoding="utf-8")
+        print(f"\nUn solo MP3: {todo} ({len(AudioSegment.from_file(str(todo)))/60000:.1f} min)")
+
+    if a.drive:
+        dest = f"{DRIVE_FEEDBACK}/lote_{lote:03d}/"
+        print(f"\nSubiendo a {dest} ...")
+        r = subprocess.run(["rclone", "copy", str(outdir), dest], capture_output=True, text=True)
+        print("  listo" if r.returncode == 0 else f"  ERROR rclone: {r.stderr.strip()[:300]}")
+        print(f"\nCuando escuches, respondé con:\n  zapaia feedback importar \"1 A, 2 B, ...\" --lote {lote}")
+        return
+
+    if a.lote:
+        print(f"\nRespondé después con:  zapaia feedback importar \"1 A, 2 B, ...\" --lote {lote}")
+        return
+
+    print("\nEscuchá cada par y contestá. [a] [b] [ambos] [ninguno] [r]epetir [s]altar [q] salir\n")
+    for num, clips in registro:
+        while True:
+            print(f"--- par {num:03d} ---  A: {clips['A'][2]}  |  B: {clips['B'][2]}")
+            fb.reproducir(clips["A"][1])
+            fb.reproducir(clips["B"][1])
+            try:
+                resp = input("¿cuál rescatarías? > ").strip().lower()
+            except EOFError:
+                resp = "q"
+            if resp in ("a", "b", "ambos", "ninguno"):
+                fb.responder(con, lote, num, resp.upper() if resp in ("a", "b") else resp)
+                break
+            if resp == "s":
+                break
+            if resp == "q":
+                print("Guardado lo respondido hasta acá.")
+                return
+            # 'r' o cualquier otra cosa: repetir
+    print("\nLote completo. Mirá el resultado con:  zapaia feedback resumen")
+
+
+def cmd_feedback(a):
+    from . import feedback as fb
+    from scipy.stats import spearmanr
+    con = cache.connect(a.db)
+
+    if a.accion == "pendientes":
+        rows = con.execute(
+            "SELECT p.lote, p.num, sa.path, sb.path FROM pares p "
+            "JOIN segmentos sa ON sa.id=p.seg_a JOIN segmentos sb ON sb.id=p.seg_b "
+            "WHERE p.eleccion IS NULL ORDER BY p.lote, p.num").fetchall()
+        print(f"{len(rows)} pares sin responder")
+        for lote, num, pa, pb in rows:
+            print(f"  lote {lote} par {num:03d}  A: {os.path.basename(pa)[:40]:42s} B: {os.path.basename(pb)[:40]}")
+        return
+
+    if a.accion == "importar":
+        if a.lote is None:
+            row = con.execute("SELECT MAX(lote) FROM pares WHERE eleccion IS NULL").fetchone()
+            if not row or row[0] is None:
+                sys.exit("No hay lotes con pares pendientes; indicá --lote.")
+            a.lote = int(row[0])
+        respuestas = fb.parsear_respuestas(a.texto)
+        ok = 0
+        for num, e in respuestas:
+            n = fb.responder(con, a.lote, num, e)
+            if n == 0:
+                print(f"  par {num:03d}: no existe en el lote {a.lote}")
+            else:
+                ok += 1
+        print(f"{ok} respuestas guardadas en el lote {a.lote}")
+        return
+
+    # resumen
+    comps = fb.comparaciones_desde_db(con)
+    n_resp = con.execute("SELECT COUNT(*) FROM pares WHERE eleccion IS NOT NULL").fetchone()[0]
+    if not comps:
+        sys.exit("Todavía no hay respuestas. Corré 'zapaia comparar'.")
+    bt = fb.bradley_terry(comps)
+    segs = {sid: (p, s, e) for sid, p, s, e in con.execute("SELECT id, path, start, end FROM segmentos")}
+
+    # dimensiones del archivo de cada segmento (un segmento por archivo, hoy)
+    _, dfw, files = _load(a)
+    d = _agg(a, dfw, files).set_index("Ruta")
+    filas = []
+    for sid, score in bt.items():
+        p = segs[sid][0]
+        if p in d.index:
+            r = d.loc[p]
+            filas.append({"seg": sid, "Toma": os.path.basename(p), "bt": score,
+                          **{k: float(r[k]) for k in ("ejecucion", "interes", "balance", "timing",
+                                                      "groove", "afinacion", "tonal_outlier",
+                                                      "creatividad", "desarrollo", "sonido")}})
+    t = pd.DataFrame(filas)
+    print(f"\n{n_resp} respuestas | {len(t)} segmentos con score latente (Bradley–Terry)\n")
+
+    # ¿qué gana cuando se enfrenta una gema con una performance?
+    gp = con.execute("SELECT eleccion, seg_a, seg_b FROM pares WHERE tipo='gem_vs_perf' "
+                     "AND eleccion IS NOT NULL").fetchall()
+    if gp:
+        gana_gem = 0
+        for e, sa, sb in gp:
+            ia, ib = d.loc[segs[sa][0]], d.loc[segs[sb][0]]
+            gem_es_a = ia["interes"] - ia["ejecucion"] > ib["interes"] - ib["ejecucion"]
+            if (e == "A" and gem_es_a) or (e == "B" and not gem_es_a):
+                gana_gem += 1
+        print(f"  gema vs performance: la gema ganó {gana_gem}/{len(gp)} veces "
+              f"(ambos/ninguno cuentan como no-gana)\n")
+
+    print("  ¿qué dimensión predice tu criterio?  (Spearman entre score latente y dimensión)")
+    res = []
+    for k in ("ejecucion", "interes", "balance", "timing", "groove", "afinacion",
+              "tonal_outlier", "creatividad", "desarrollo", "sonido"):
+        if t[k].nunique() > 1 and len(t) >= 5:
+            rho, pv = spearmanr(t["bt"], t[k])
+            res.append((k, rho, pv))
+    for k, rho, pv in sorted(res, key=lambda x: -abs(x[1])):
+        flag = " ***" if pv < 0.01 else " *" if pv < 0.05 else ""
+        print(f"    {k:14s} rho={rho:+.2f}  p={pv:.3f}{flag}")
+    if len(t) < 30:
+        print(f"\n  Con {len(t)} segmentos esto es orientativo. A partir de ~30-50 respuestas "
+              "las correlaciones empiezan a significar algo; a partir de 150 se puede entrenar.")
+    print("\n  top por tu criterio:")
+    for _, r in t.sort_values("bt", ascending=False).head(a.top).iterrows():
+        print(f"    {r['bt']:+.2f}  eje={r['ejecucion']:.2f} int={r['interes']:.2f}  {r['Toma']}")
+    if a.out:
+        t.sort_values("bt", ascending=False).to_csv(a.out, index=False, float_format="%.4f")
+        print(f"\n  CSV -> {a.out}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="zapaia", description="Ranking de tomas de ensayo")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -410,7 +602,39 @@ def main(argv=None):
     v.add_argument("--refs", default="refs.txt")
     v.set_defaults(func=cmd_eval)
 
-    for sp in (r, v, m):
+    c = sub.add_parser("comparar", help="pares A/B para escuchar y decir cuál rescatarías")
+    common(c); weights(c)
+    c.add_argument("--n", type=int, default=10, help="cantidad de pares del lote")
+    c.add_argument("--dur", type=float, default=40.0, help="segundos por clip")
+    c.add_argument("--seg-win", type=int, default=2,
+                   help="ventanas contiguas para elegir el tramo (2 = 60 s)")
+    c.add_argument("--seed", type=int, default=None)
+    c.add_argument("--out-dir", default="feedback")
+    c.add_argument("--lote", action="store_true",
+                   help="solo generar los clips y lote.txt, sin reproducir")
+    c.add_argument("--drive", action="store_true",
+                   help="generar y subir el lote a Drive con rclone (para escuchar en el celular)")
+    c.add_argument("--sin-snap", action="store_true")
+    c.add_argument("--un-mp3", action="store_true",
+                   help="además de los clips, un solo MP3 con todo el lote (implícito con --drive)")
+    c.set_defaults(func=cmd_comparar)
+
+    f = sub.add_parser("feedback", help="importar respuestas y ver qué dimensión predice tu criterio")
+    f.add_argument("accion", choices=["importar", "resumen", "pendientes"])
+    f.add_argument("texto", nargs="?", default="", help='importar: "1 A, 2 B, 3 ninguno"')
+    # Acá root es opcional: el cwd del proyecto es prefijo de todas las rutas del caché.
+    f.add_argument("--root", default=".")
+    f.add_argument("--db", default=DEFAULTS["db"])
+    f.add_argument("--sr", type=int, default=DEFAULTS["sr"])
+    f.add_argument("--win", type=float, default=DEFAULTS["win"])
+    f.add_argument("--hop", type=float, default=DEFAULTS["hop"])
+    weights(f)
+    f.add_argument("--lote", type=int, default=None)
+    f.add_argument("--top", type=int, default=10)
+    f.add_argument("--out", default=None)
+    f.set_defaults(func=cmd_feedback)
+
+    for sp in (r, v, m, c, f):
         sp.add_argument("--sort-by", default="score_med",
                         choices=["score_med", "score_best", "ejecucion", "interes",
                                  "balance", "gems", "timing", "groove", "afinacion",
