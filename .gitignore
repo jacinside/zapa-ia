@@ -1,0 +1,22 @@
+# Audio: nunca al repo (9+ GB)
+*.mp3
+*.wav
+*.flac
+nebulosa/
+ensayos/
+
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Caché de features y salidas
+*.db
+.zapaia_cache.db
+ranking*.csv
+ventanas*.csv
+scores.csv
+log.txt
+
+# playlists con rutas absolutas locales
+*.m3u

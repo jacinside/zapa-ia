@@ -1,0 +1,12 @@
+# Instalar en .venv (Python 3.9): .venv/bin/pip install -r requirements.txt
+numpy<2
+pandas
+librosa
+soundfile
+pydub            # requiere ffmpeg en el PATH (brew install ffmpeg)
+scipy
+scikit-learn
+matplotlib
+# Solo para los notebooks viejos / embeddings YAMNet opcionales:
+tensorflow-macos
+tensorflow-hub
