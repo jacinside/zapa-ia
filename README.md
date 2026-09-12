@@ -26,6 +26,11 @@ python3 -m venv .venv
 # 2. Rankear (instantáneo: lee del caché, no vuelve a tocar el audio)
 .venv/bin/python -m zapaia rank ensayos/ --top 30 --dedupe --out ranking.csv
 
+#    elegir QUÉ pregunta responde el ranking:
+.venv/bin/python -m zapaia rank ensayos/ --perfil performances # ¿qué tan bien está tocado?
+.venv/bin/python -m zapaia rank ensayos/ --perfil ideas        # ¿hay una idea que vale?
+.venv/bin/python -m zapaia rank ensayos/ --perfil gems         # ideas buenas mal tocadas
+
 #    rankear por una dimensión sola:
 .venv/bin/python -m zapaia rank ensayos/ --sort-by timing      # las más precisas
 .venv/bin/python -m zapaia rank ensayos/ --sort-by creatividad # las que más pasan cosas

@@ -36,16 +36,24 @@ def params_key(sr, win, hop):
     return (FEATURE_VERSION, sr, win, hop)
 
 
-def is_fresh(con, path, sr, win, hop):
-    """True si el archivo ya está procesado con estos mismos parámetros y mtime."""
+def is_fresh(con, path, sr, win, hop, reintentar_errores=False):
+    """True si el archivo ya está procesado con estos parámetros, mtime Y tamaño.
+
+    Un archivo que falló ('error') también cuenta como fresco mientras no cambie:
+    reintentarlo sin que cambie nada da el mismo error y cuesta un decode. Con
+    `reintentar_errores=True` se fuerza el reintento.
+    """
     st = os.stat(path)
     row = con.execute(
-        "SELECT mtime, fver, sr, win, hop, status FROM files WHERE path=?", (path,)
+        "SELECT mtime, size, fver, sr, win, hop, status FROM files WHERE path=?", (path,)
     ).fetchone()
     if not row:
         return False
-    mtime, fver, s, w, h, status = row
-    return (abs(mtime - st.st_mtime) < 1e-6 and (fver, s, w, h) == params_key(sr, win, hop)
+    mtime, size, fver, s, w, h, status = row
+    if status == "error" and reintentar_errores:
+        return False
+    return (abs(mtime - st.st_mtime) < 1e-6 and size == st.st_size
+            and (fver, s, w, h) == params_key(sr, win, hop)
             and status in ("ok", "error"))
 
 
