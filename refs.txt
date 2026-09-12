@@ -1,0 +1,40 @@
+# GROUND TRUTH — tomas con juicio humano registrado.
+#
+# Formato: un nombre de archivo por línea. Prefijo '-' = toma MALA (negativo).
+# '#' = comentario. Se usa con:  .venv/bin/python -m zapaia eval nebulosa
+#
+# Sin esto, ajustar pesos es adivinar. Cuantas más entradas, más confiable.
+# Los NEGATIVOS valen tanto como los positivos: sin ellos no se puede calcular AUC.
+#
+# ---------------------------------------------------------------------------
+# POSITIVOS — referencia directa del usuario
+# ---------------------------------------------------------------------------
+epilepsia orgasmica.mp3
+
+# ---------------------------------------------------------------------------
+# POSITIVOS — tomas con proyecto de REAPER (.RPP) en Google Drive.
+# Que exista un proyecto de mezcla es una acción humana costosa y deliberada:
+# alguien se sentó a trabajar esa toma. Es la señal más fuerte disponible.
+# Origen: Drive > Zapadas New > Nebulosa > Canciones > {Pobre, kikikiki, Fluyendo}
+# y Zapadas New > Para masterizar.
+# ---------------------------------------------------------------------------
+# Verificados byte a byte contra Drive (mismo tamaño exacto = misma toma):
+kikikiiiiki.mp3
+kikikiikii take 2.mp3
+zapadita fluyendo remaster.mp3
+
+# Sin verificar: en Drive estaba el .RPP pero no el mp3, así que el match es
+# solo por nombre. Vale menos que los de arriba.
+zapadita fluyendo.mp3
+
+# DESCARTADO: pobre.mp3
+#   El pobre.mp3 de Drive (el que tiene el .RPP) pesa 24.383.737 bytes y el local
+#   13.716.374 -> 44% de diferencia, NO es la misma toma. Coincidía el nombre y
+#   nada más. Sacado por criterio objetivo de tamaño, no por puntuar bajo.
+#   Lección: matchear por nombre entre Drive y disco NO alcanza, hay que verificar
+#   tamaño o hash antes de usar algo como ground truth.
+
+# ---------------------------------------------------------------------------
+# NEGATIVOS — agregar acá las tomas que se sepa que NO sirven.
+# (todavía vacío: hacen falta para poder medir AUC / precision@10)
+# ---------------------------------------------------------------------------
