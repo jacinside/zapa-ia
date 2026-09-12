@@ -42,7 +42,18 @@ python3 -m venv .venv
 .venv/bin/python -m zapaia diag ensayos/    # ¿alguna feature no discrimina?
 .venv/bin/python -m zapaia eval ensayos/    # ¿dónde caen las refs de refs.txt?
 .venv/bin/python -m zapaia dupes ensayos/   # duplicados por huella de audio
+
+# 5. Enseñarle tu criterio: pares A/B ("¿cuál rescatarías?")
+.venv/bin/python -m zapaia comparar ensayos/ --n 10            # reproduce con afplay y pregunta
+.venv/bin/python -m zapaia comparar ensayos/ --n 20 --lote     # solo genera clips + lote.txt
+.venv/bin/python -m zapaia feedback importar "1 A, 2 B, 3 ninguno"
+.venv/bin/python -m zapaia feedback resumen                    # qué dimensión predice tu criterio
 ```
+
+Las respuestas se guardan en el mismo caché SQLite (`segmentos`, `pares`) con la versión de
+features, y `feedback resumen` ajusta un modelo Bradley–Terry para obtener un score latente por
+segmento y correlarlo con cada dimensión. Con suficientes comparaciones, eso reemplaza el ajuste
+manual de pesos.
 
 Cambiar pesos NO requiere reprocesar: para eso está el caché. Cambiar `features.py` sí —
 subir `FEATURE_VERSION` en `zapaia/__init__.py` lo invalida automáticamente.
