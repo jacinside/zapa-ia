@@ -6,26 +6,42 @@ ocupan dos lugares del top-N con el mismo material.
 import numpy as np
 
 
-def find_groups(sigs, sim_thr=0.9995, dur_tol=2.0):
-    """sigs: lista (path, duration, vector). Devuelve {path: id_de_grupo}."""
+def find_groups(sigs, sim_thr=0.997, dur_tol=2.0):
+    """sigs: lista (path, duration, vector). Devuelve {path: id_de_grupo}.
+
+    Dos arreglos respecto de la versión anterior:
+    - Compara vectores CENTRADOS. En crudo, dos zapadas cualesquiera daban ~0.98
+      porque comparten sala y banda, y el umbral 0.9995 solo veía re-encodes.
+    - Union-find: si A~B y B~C, los tres quedan juntos aunque A y C no se
+      parezcan directamente. La versión anterior saltaba B al ya tener grupo y
+      C terminaba solo (test sintético en docs/review-2026-09-12.md §1.5).
+    """
     items = [(p, d, v) for p, d, v in sigs if v is not None and v.size]
+    if not items:
+        return {}
+    M = centrar([v for _, _, v in items])
     order = sorted(range(len(items)), key=lambda i: items[i][1])
-    group = {}
-    gid = 0
-    for ii, i in enumerate(order):
-        pi, di, vi = items[i]
-        if pi in group:
-            continue
-        group[pi] = gid
-        for j in order[ii + 1:]:
-            pj, dj, vj = items[j]
-            if dj - di > dur_tol:
+    padre = list(range(len(items)))
+
+    def raiz(i):
+        while padre[i] != i:
+            padre[i] = padre[padre[i]]
+            i = padre[i]
+        return i
+
+    for a, i in enumerate(order):
+        di = items[i][1]
+        for j in order[a + 1:]:
+            if items[j][1] - di > dur_tol:
                 break                      # ordenado por duración: cortamos
-            if pj in group or vi.shape != vj.shape:
-                continue
-            if float(np.dot(vi, vj)) >= sim_thr:
-                group[pj] = gid
-        gid += 1
+            if float(np.dot(M[i], M[j])) >= sim_thr:
+                ri, rj = raiz(i), raiz(j)
+                if ri != rj:
+                    padre[rj] = ri
+    ids, group = {}, {}
+    for i, (p, _, _) in enumerate(items):
+        r = raiz(i)
+        group[p] = ids.setdefault(r, len(ids))
     return group
 
 

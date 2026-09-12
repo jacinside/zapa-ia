@@ -59,8 +59,16 @@ Usar siempre `.venv/bin/python`: el Python del sistema es 3.14 y no corre `tenso
 #    ignorar la calidad de grabación, solo vetar lo inescuchable:
 .venv/bin/python -m zapaia rank nebulosa --modo veto --sonido-min 0.15
 
-#    repesar las dimensiones de ejecución:
+#    elegir qué pregunta responde el ranking (ver "Diseño del score"):
+.venv/bin/python -m zapaia rank nebulosa --perfil performances   # ¿qué tan bien está tocado?
+.venv/bin/python -m zapaia rank nebulosa --perfil ideas          # ¿hay una idea que vale?
+.venv/bin/python -m zapaia rank nebulosa --perfil gems           # ideas buenas mal tocadas
+
+#    repesar dimensiones (un solo juego de pesos, cada composite renormaliza su subconjunto):
 .venv/bin/python -m zapaia rank nebulosa --w-timing 0.5 --w-groove 0.3 --w-afinacion 0.2 --w-desarrollo 0
+
+#    reprocesar solo los archivos que fallaron (p. ej. uoho.mp3, MP3 corrupto):
+.venv/bin/python -m zapaia extract nebulosa --reintentar-errores
 
 #    filtrar fragmentos cortos (N ventanas = N*30s):
 .venv/bin/python -m zapaia rank nebulosa --min-win 6
@@ -85,23 +93,46 @@ que invalida el caché automáticamente.
 Dos niveles. **Ventana de 30 s** (normalizada por percentil contra todas las ventanas del
 corpus) y **archivo** (mediana de las ventanas + dimensiones que solo existen a nivel archivo).
 
-### Las cuatro dimensiones de "bien tocada"
+### Seis dimensiones, dos composites, cuatro perfiles
 
 Se reportan **por separado** y se puede rankear por cada una con `--sort-by`:
 
-| Dimensión | Qué mide | Features |
+| Dimensión | Nivel | Qué mide | Features |
+|---|---|---|---|
+| `timing` | ventana | ¿toca preciso? | `ibi_cv`, `tempo_drift`, `onset_dev_mad` (peso 0.15: es casi ruido acá, ver review §1.3) |
+| `groove` | ventana | ¿hay pulso y están enganchados? | `pulse_clarity`, `band_sync`, `beat_strength` |
+| `afinacion` | ventana | ¿afinado y con centro tonal? | `tuning_dev` (sin validar semánticamente), `key_clarity` |
+| `tonal_outlier` | ventana | energía fuera de la tonalidad local | `fuera_tono_med`, `fuera_tono_p95`. Antes "notas"/"pifies": el nombre era una hipótesis. Correlaciona +0.50 con `flatness`: mide banda ancha tanto como notas equivocadas |
+| `desarrollo` | archivo | ¿se sostiene? | `tempo_consistency` (gruesa: tempo cuantizado a 26 valores), `arco_dinamico` |
+| `creatividad` | archivo | ¿pasa algo? | `novedad_armonica`, `harmonic_flux`, `variedad_textura`. **Sin validar**; premia la duración |
+
+Las de archivo no se le pueden preguntar a 30 s, así que se calculan comparando ventanas y se
+normalizan entre archivos. El **mejor tramo** siempre se elige con el score de ventana.
+
+Dos composites — son preguntas distintas, no un solo número:
+
+- **`ejecucion`** = timing, groove, afinacion, tonal_outlier → *¿qué tan bien está tocado?*
+- **`interes`** = creatividad, desarrollo → *¿hay una idea que vale la pena recuperar?*
+
+Un solo juego de pesos (`--w-timing --w-groove --w-afinacion --w-tonal --w-desarrollo
+--w-creatividad`, default 0.35/0.30/0.15/0.10/0.20/0.20); cada composite renormaliza su subconjunto.
+
+`--perfil` decide qué composite es el `score`:
+
+| Perfil | `score` | Tramo dentro del archivo |
 |---|---|---|
-| `timing` | ¿toca preciso? | `ibi_cv` (estabilidad adimensional), `tempo_drift` (pendiente real del IBI), `onset_dev_mad` (desvío al beat en fracción de beat) |
-| `groove` | ¿hay pulso y están enganchados? | `pulse_clarity` (PLP), `band_sync` (onsets de banda baja vs alta), `beat_strength` (beats acentuados vs pulso inferido) |
-| `afinacion` | ¿afinado y con centro tonal? | `tuning_dev` (fracción de semitono), `key_clarity` (Krumhansl sobre 24 tonalidades), `chroma_entropy` |
-| `desarrollo` | ¿la zapada va a algún lado? | `tempo_consistency`, `arco_dinamico`, `novedad_armonica` — **nivel archivo** |
+| `balance` (default) | timing + groove + afinacion + desarrollo — **la mezcla validada** | ejecución completa |
+| `performances` | `ejecucion` | ejecución completa |
+| `ideas` | `interes` | ejecución **limpia** (sin tonal_outlier: no castigar cromatismos) |
+| `gems` | `interes × (1 − 0.5·ejecucion)` — interés alto, ejecución baja/media | ejecución limpia |
 
-`desarrollo` no puede medirse en una ventana de 30 s (no se le pregunta a medio minuto si
-evoluciona), así que se calcula comparando ventanas entre sí y se normaliza entre archivos. Por lo
-mismo, el **mejor tramo** se elige sin desarrollo.
-
-`ejecucion` = combinación pesada de las cuatro (`--w-timing --w-groove --w-afinacion
---w-desarrollo`, default 0.35/0.30/0.15/0.20).
+**Por qué `balance` no incluye las seis.** Medido sobre los 3 positivos held-out (tomas con
+proyecto de REAPER), percentil mediano: las cuatro validadas **83.3**; + tonal_outlier 82.6;
++ creatividad 79.1; las seis 74.2. Cada dimensión sin validar que entra, baja las referencias.
+`tonal_outlier` y `creatividad` se habían agregado sin re-correr `eval` en el corpus completo —
+violando la regla 8 — y el default había quedado en 74.2. Bajo `ideas` las mismas referencias
+caen al percentil 40: consistente con que "elegida para mezclar" mide ejecución, no interés.
+Es la pregunta que el feedback pareado (P1) tiene que responder.
 
 ### ¿El pipeline nuevo es mejor que el viejo? Sí, y por mucho
 

@@ -1,10 +1,16 @@
 """Normalización robusta y combinación de features en scores.
 
 Dos niveles:
-  - VENTANA (30 s): sonido, timing, groove, afinación. Se normalizan por percentil
-    contra todas las ventanas del corpus.
-  - ARCHIVO: mediana de las dimensiones de ventana + desarrollo (que solo existe a
-    nivel archivo: cómo evoluciona la zapada a lo largo del tiempo).
+  - VENTANA (30 s): sonido, timing, groove, afinación, tonal_outlier. Se normalizan
+    por percentil contra todas las ventanas del corpus.
+  - ARCHIVO: mediana de las dimensiones de ventana + las que solo existen a nivel
+    archivo (desarrollo, creatividad: cómo evoluciona la zapada en el tiempo).
+
+Dos composites, y un perfil que elige cuál manda:
+  - ejecucion = ¿qué tan bien está tocado?   (timing, groove, afinacion, tonal_outlier)
+  - interes   = ¿hay acá una idea que vale?  (creatividad, desarrollo)
+Son problemas distintos: una zapada con pifies y tempo flojo puede tener el mejor
+riff del archivo. Ver docs/review-2026-09-12.md §2.
 
 Regla de oro: NINGUNA feature entra a una suma ponderada sin normalizar antes.
 La versión vieja sumaba centroide (~2000) con RMS (~0.05) y el peso 0.4 del RMS
@@ -34,9 +40,14 @@ SONIDO = {
 
 # ¿Toca preciso? Estabilidad y alineación rítmica.
 TIMING = {
-    "ibi_cv":         (-1, 0.35),   # estabilidad de tempo (adimensional)
-    "tempo_drift":    (-1, 0.25),   # deriva sostenida
-    "onset_dev_mad":  (-1, 0.40),   # desvío al beat, en fracción de beat
+    "ibi_cv":         (-1, 0.50),   # estabilidad de tempo (adimensional)
+    "tempo_drift":    (-1, 0.35),   # deriva sostenida
+    "onset_dev_mad":  (-1, 0.15),   # desvío al beat, en fracción de beat
+    # onset_dev_mad bajó de 0.40 a 0.15: mide distancia al beat PRINCIPAL, así que
+    # castiga la síncopa igual que el timing flojo. Medido: mediana del corpus
+    # 0.227 contra 0.25 de una fase uniforme al azar, 74% de ventanas >= 0.20.
+    # Es casi ruido acá. El reemplazo (desvío a grilla de subdivisiones +
+    # consistencia de grilla) requiere FEATURE_VERSION 5. Ver review §1.3.
 }
 
 # ¿Hay pulso y la banda está enganchada?
@@ -53,29 +64,40 @@ AFINACION = {
     "key_clarity":    (+1, 0.45),   # hay tonalidad, no ruido atonal
     # chroma_entropy salió de acá: correlaciona 0.69 con harmonic_flux, o sea que
     # medía movimiento armónico y no foco tonal. Quedó como diagnóstico.
+    # tuning_dev es estable e independiente pero NO está validada semánticamente
+    # (estimate_tuning sobre una mezcla). Secundaria hasta tener pares humanos.
 }
 
-# ¿Toca las notas CORRECTAS? Punto ciego de todo lo anterior: timing mide cuándo
-# suena una nota y afinacion si el instrumento está afinado, pero un pifie a
-# tiempo con un bajo bien afinado puntuaba alto. Un pifie es energía en una clase
-# de altura ajena a la tonalidad que viene sonando.
-NOTAS = {
-    "fuera_tono_med":   (-1, 0.45),  # energía que cae fuera de la tonalidad local
-    "fuera_tono_p95":   (-1, 0.40),  # picos: un pifie aislado se diluye en la media
-    "fuera_tono_picos": (-1, 0.15),  # cuánto tiempo se pasa en esos picos
+# Energía de croma FUERA de la tonalidad local. Antes se llamaba NOTAS ("pifies"),
+# y el nombre era una hipótesis, no una medición: correlaciona +0.50 con flatness
+# y -0.56 con spectral_contrast, o sea que mide contenido de banda ancha
+# (distorsión, platillos, ruido) tanto como notas equivocadas; y "fuera de escala"
+# también son cromatismos, blue notes y disonancia intencional. El usuario
+# validó por oído que los picos coinciden con pifies reales, así que sirve como
+# señal de EJECUCIÓN secundaria. En 'interes' pesa cero: penalizaría justo lo que
+# se quiere rescatar.
+TONAL_OUTLIER = {
+    "fuera_tono_med":   (-1, 0.55),  # energía fuera de la tonalidad local
+    "fuera_tono_p95":   (-1, 0.45),  # picos: un pifie aislado se diluye en la media
+    # fuera_tono_picos salió: era el 2% de frames por construcción (percentil 98
+    # dentro de la misma ventana) -> 23 valores únicos en 11.205 ventanas.
 }
 
 # --------------------------------------------------------------------------
-# Dimensión de ARCHIVO: ¿la zapada va a algún lado, o es un loop de 20 minutos?
-# Solo tiene sentido comparando ventanas entre sí, no dentro de una.
+# Dimensiones de ARCHIVO: solo tienen sentido comparando ventanas entre sí.
 # --------------------------------------------------------------------------
+
+# ¿La zapada se sostiene? Nivel archivo.
 DESARROLLO = {
     "tempo_consistency": (+1, 0.55),   # sostener el tempo 10 min es mérito real
     "arco_dinamico":     (+1, 0.45),   # partes suaves y partes fuertes
+    # OJO: tempo viene cuantizado (26 valores únicos en 11.205 ventanas), así que
+    # tempo_consistency es gruesa. Tempo continuo requiere FEATURE_VERSION 5.
 }
 
 # ¿Pasa algo interesante, o es un riff en loop? Lo que separa una zapada que va
-# a algún lado de una que repite la misma idea 10 minutos. También de archivo.
+# a algún lado de una que repite la misma idea 10 minutos. SIN VALIDAR: hay un
+# A/B pendiente (muestra_A vs muestra_B).
 CREATIVIDAD = {
     "novedad_armonica":  (+1, 0.40),   # la armonía se mueve entre secciones
     "harmonic_flux":     (+1, 0.35),   # movimiento armónico dentro de las ventanas
@@ -83,17 +105,34 @@ CREATIVIDAD = {
 }
 
 VENTANA_DIMS = {"sonido": SONIDO, "timing": TIMING, "groove": GROOVE,
-                "afinacion": AFINACION, "notas": NOTAS}
+                "afinacion": AFINACION, "tonal_outlier": TONAL_OUTLIER}
+ARCHIVO_DIMS = {"desarrollo": DESARROLLO, "creatividad": CREATIVIDAD}
+
+# Qué dimensiones forman cada composite.
+DIMS_EJECUCION = ("timing", "groove", "afinacion", "tonal_outlier")
+DIMS_EJEC_LIMPIA = ("timing", "groove", "afinacion")      # sin castigar cromatismos
+DIMS_INTERES = ("creatividad", "desarrollo")
+# balance = la mezcla VALIDADA. Medido sobre los 3 positivos held-out (tomas con
+# proyecto de REAPER): timing+groove+afinacion+desarrollo da mediana 83.3;
+# agregar tonal_outlier 82.6; agregar creatividad 79.1; las seis 74.2. Cada
+# dimensión sin validar que entra, baja las referencias humanas. Por eso
+# tonal_outlier y creatividad solo viven en 'performances' / 'ideas' / 'gems'
+# hasta que el feedback pareado (P1) diga otra cosa.
+DIMS_BALANCE = ("timing", "groove", "afinacion", "desarrollo")
+
+PERFILES = ("balance", "performances", "ideas", "gems")
 
 # Se calculan y reportan, pero NO puntúan: describen el carácter del audio, no su
 # calidad. El centroide acá era el que hundía todo lo grave.
 DIAGNOSTICO = ["centroid", "rolloff85", "rms_db", "noise_floor_db", "tempo", "n_beats",
                "onset_rate", "band_lag_ms", "low_energy_ratio", "dc_offset",
                "harmonic_flux", "spectral_contrast", "chroma_entropy",
-               "snr_proxy_db", "dyn_range_db"]
+               "snr_proxy_db", "dyn_range_db", "fuera_tono_picos"]
 
-PESOS_EJEC_DEFAULT = {"timing": 0.25, "groove": 0.20, "notas": 0.15,
-                      "afinacion": 0.10, "desarrollo": 0.10, "creatividad": 0.20}
+# Un solo juego de pesos sobre las seis dimensiones puntuables. Cada composite
+# usa el subconjunto que le corresponde, renormalizado.
+PESOS_DEFAULT = {"timing": 0.35, "groove": 0.30, "afinacion": 0.15, "desarrollo": 0.20,
+                 "tonal_outlier": 0.10, "creatividad": 0.20}
 
 
 def rank_norm(s):
@@ -118,6 +157,20 @@ def _group_score(df, spec):
     return acc / total
 
 
+def _combo(d, pesos, dims):
+    """Suma ponderada de dimensiones ya en [0,1], con los pesos renormalizados
+    al subconjunto. Si el subconjunto pesa cero, promedio simple."""
+    dims = [k for k in dims if k in d.columns]
+    if not dims:
+        return pd.Series(0.5, index=d.index)
+    w = {k: float(pesos.get(k, 0.0)) for k in dims}
+    tot = sum(w.values())
+    if tot <= 0:
+        w = {k: 1.0 for k in dims}
+        tot = float(len(dims))
+    return sum(d[k] * (w[k] / tot) for k in dims)
+
+
 def drop_degenerate(df):
     """Saca ventanas sin señal: silencio o audio muerto no debe puntuar."""
     if "is_silent" in df.columns:
@@ -128,16 +181,20 @@ def drop_degenerate(df):
 
 
 def score_windows(df, peso_sonido=0.35, peso_ejec=0.65, modo="mixto", sonido_min=0.15,
-                  pesos_ejec=None):
-    """Puntúa cada ventana en las 4 dimensiones y arma el score de ventana.
+                  pesos=None, perfil="balance"):
+    """Puntúa cada ventana en las dimensiones de ventana y arma su `score`.
 
     modo='mixto': suma ponderada de sonido y ejecución.
     modo='veto' : el sonido NO suma, solo descalifica. Todas las tomas son de la
                   misma banda en la misma sala, así que la varianza de sonido es
                   más accidente de micrófono que calidad de la toma; una zapada
                   bien tocada y mal grabada se arregla mezclando, una mal tocada no.
+
+    El `score` de ventana decide qué TRAMO se elige dentro de un archivo. Con
+    perfil 'ideas' o 'gems' usa la ejecución LIMPIA (sin tonal_outlier): el mejor
+    tramo de una idea es el que se sostiene tocando, no el que evita cromatismos.
     """
-    pesos_ejec = dict(pesos_ejec or PESOS_EJEC_DEFAULT)
+    pesos = dict(pesos or PESOS_DEFAULT)
     df = drop_degenerate(df)
     for name, spec in VENTANA_DIMS.items():
         df[name] = _group_score(df, spec)
@@ -145,15 +202,14 @@ def score_windows(df, peso_sonido=0.35, peso_ejec=0.65, modo="mixto", sonido_min
     if modo == "veto":
         df = df[df["sonido"] >= df["sonido"].quantile(sonido_min)].copy()
 
-    # 'desarrollo' es de archivo: acá se reparte su peso entre las que sí son de ventana.
-    wv = {k: pesos_ejec.get(k, 0.0) for k in ("timing", "groove", "afinacion", "notas")}
-    tot = sum(wv.values()) or 1.0
-    df["ejec_ventana"] = sum(df[k] * (w / tot) for k, w in wv.items())
+    df["ejec_ventana"] = _combo(df, pesos, DIMS_EJECUCION)
+    df["ejec_limpia"] = _combo(df, pesos, DIMS_EJEC_LIMPIA)
+    base = df["ejec_limpia"] if perfil in ("ideas", "gems") else df["ejec_ventana"]
 
     if modo == "veto":
-        df["score"] = df["ejec_ventana"]
+        df["score"] = base
     else:
-        df["score"] = peso_sonido * df["sonido"] + peso_ejec * df["ejec_ventana"]
+        df["score"] = peso_sonido * df["sonido"] + peso_ejec * base
     return df
 
 
@@ -191,15 +247,18 @@ def _file_level_features(g):
 
 
 def aggregate_files(df_win, files, best_q=0.95, shrink_k=4.0, modo="mixto",
-                    peso_sonido=0.35, peso_ejec=0.65, pesos_ejec=None):
-    """Un archivo -> sub-scores por dimensión, score global y mejor tramo.
+                    peso_sonido=0.35, peso_ejec=0.65, pesos=None, perfil="balance"):
+    """Un archivo -> dimensiones, composites (ejecucion / interes / balance / gems),
+    score según perfil, y mejor tramo.
 
     `shrink_k` corrige la inflación de varianza de los archivos cortos: con 2
     ventanas la mediana se va a los extremos por azar, con 30 no. Se encoge hacia
     0.5 con peso n/(n+k), así una toma de 1 minuto tiene que ser MUY buena para
     ganarle a una de 10.
     """
-    pesos_ejec = dict(pesos_ejec or PESOS_EJEC_DEFAULT)
+    pesos = dict(pesos or PESOS_DEFAULT)
+    if perfil not in PERFILES:
+        raise ValueError(f"perfil desconocido: {perfil}")
     out = []
     for path, g in df_win.groupby("path"):
         g = g.sort_values("start")
@@ -226,21 +285,29 @@ def aggregate_files(df_win, files, best_q=0.95, shrink_k=4.0, modo="mixto",
     if d.empty:
         return d
 
-    # 'desarrollo' se normaliza entre archivos, no entre ventanas.
-    d["desarrollo"] = _group_score(d, DESARROLLO)
-    d["creatividad"] = _group_score(d, CREATIVIDAD)
+    # Las de archivo se normalizan entre archivos, no entre ventanas.
+    for name, spec in ARCHIVO_DIMS.items():
+        d[name] = _group_score(d, spec)
 
-    # Ejecución = las 3 dimensiones de ventana + desarrollo, todo ya en [0,1].
-    tot = sum(pesos_ejec.values()) or 1.0
-    d["ejecucion"] = sum(d[k] * (w / tot) for k, w in pesos_ejec.items())
+    # Composites, todos en [0,1].
+    d["ejecucion"] = _combo(d, pesos, DIMS_EJECUCION)
+    d["interes"] = _combo(d, pesos, DIMS_INTERES)
+    d["balance"] = _combo(d, pesos, DIMS_BALANCE)
+    # gems: interés alto que el ranking de ejecución no habría mostrado. A
+    # ejecución 0 vale el interés completo, a ejecución 1 la mitad. Heurística
+    # hasta tener feedback humano; ver review §2.
+    d["gems"] = d["interes"] * (1.0 - 0.5 * d["ejecucion"])
 
-    if modo == "veto":
-        base_med, base_best = d["ejecucion"], d["ejecucion"]
-    else:
-        base_med = peso_sonido * d["sonido"] + peso_ejec * d["ejecucion"]
-        base_best = base_med
-    # El mejor tramo se juzga con el score de ventana (desarrollo no aplica a 30 s).
-    d["score_med_raw"] = 0.5 * base_med + 0.5 * d["_w_med"]
+    base = {"balance": d["balance"], "performances": d["ejecucion"],
+            "ideas": d["interes"], "gems": d["gems"]}[perfil]
+    if modo != "veto" and perfil in ("balance", "performances"):
+        base = peso_sonido * d["sonido"] + peso_ejec * base
+
+    # El mejor tramo se juzga con el score de ventana (las de archivo no aplican
+    # a 30 s). En los perfiles de idea pesa menos: el archivo importa más que
+    # cuán bien se toca su mejor minuto y medio.
+    w_win = 0.2 if perfil in ("ideas", "gems") else 0.5
+    d["score_med_raw"] = (1.0 - w_win) * base + w_win * d["_w_med"]
     d["score_best_raw"] = d["_w_best"]
 
     w = d["n_win"] / (d["n_win"] + shrink_k)
@@ -256,7 +323,9 @@ def diagnose(df_win):
     feats = []
     for spec in VENTANA_DIMS.values():
         feats += list(spec)
-    feats += list(DESARROLLO) + list(CREATIVIDAD) + DIAGNOSTICO
+    for spec in ARCHIVO_DIMS.values():
+        feats += list(spec)
+    feats += DIAGNOSTICO
     rows = []
     for feat in feats:
         if feat not in df_win.columns:
@@ -264,9 +333,8 @@ def diagnose(df_win):
         x = pd.to_numeric(df_win[feat], errors="coerce").dropna()
         if x.empty:
             continue
-        grupo = next((n for n, s in VENTANA_DIMS.items() if feat in s),
-                     "desarrollo" if feat in DESARROLLO else
-                     ("creatividad" if feat in CREATIVIDAD else "diag"))
+        grupo = next((n for n, s in VENTANA_DIMS.items() if feat in s), None) or \
+            next((n for n, s in ARCHIVO_DIMS.items() if feat in s), "diag")
         p10, p50, p90 = np.percentile(x, [10, 50, 90])
         iqr = np.percentile(x, 75) - np.percentile(x, 25)
         rows.append({
