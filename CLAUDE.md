@@ -411,6 +411,14 @@ bombo y bajo) y alta (>2 kHz, platillos y caja), reusando el melspectrograma. M�
 estable y más directa de interpretar. `harmonic_ratio` se fue con ella; en su lugar quedó
 `low_energy_ratio` como descriptor de carácter.
 
+## Reviews y decisiones pendientes
+
+- `docs/review-2026-09-12.md` — contraste de un review externo contra el código real. Contiene el
+  roadmap vigente (P0–P8), los bugs verificados con datos (`fuera_tono_picos` constante,
+  `onset_dev_mad` ≈ ruido, `find_groups` no transitivo y sin centrar, `is_fresh` ignora `size`) y
+  el diseño del experimento de embeddings y de la herramienta de feedback pareado. **Leerlo antes
+  de tocar `score.py` o `features.py`.**
+
 ## Convenciones
 
 - Todo en español: comentarios, prints, nombres de columnas del CSV.
