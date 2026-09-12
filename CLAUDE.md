@@ -282,6 +282,32 @@ Arma un solo MP3 con los mejores tramos de varias tomas. Decisiones de diseño:
 - `--sort-by` elige con qué criterio se seleccionan las tomas Y los tramos: `timing` para
   prolijidad de ejecución, `groove` para enganche, etc.
 
+## Preferencias del usuario (validadas por oído, no inferidas)
+
+**Prioriza variedad y creatividad por encima de prolijidad técnica.** Dijo textualmente:
+"ya sé que son ensayos y tienen pifies, y esa es la razón principal" — no quiere perseguir
+perfección técnica, quiere partes con creatividad. Confirmó escuchando que los compilados con
+diversidad de temas (`--max-por-tema 1 --diversidad 0.15`) son claramente mejores que los
+seleccionados solo por ejecución.
+
+Por eso esos dos flags son **default**. No subir el peso de `notas`/`afinacion` buscando tomas
+impecables: no existen en este corpus (mediana de fuera-de-tonalidad 0.335, mejor selección
+alcanzable ~0.276).
+
+**La calidad de audio le importa poco.** De ahí que `sonido` tenga peso 0 y solo actúe como veto.
+
+**Validar pidiendo comparaciones, no introspección.** Dijo "es difícil validar lo que decís" ante
+la pregunta de si `creatividad` elegía bien. Funciona mucho mejor darle un A/B controlado —dos
+muestras idénticas salvo una variable— y que solo diga cuál prefiere. `muestra_A` (sin
+creatividad) vs `muestra_B` (creatividad 0.40) comparten 6 de 10 tramos justamente para eso.
+
+**Entrega:** los MP3 van a Google Drive para escucharlos desde el celular, en
+`Zapadas New/Nebulosa/Seleccion IA - compilados`. Se sube con `rclone copy <archivo>
+"gdrive:Zapadas New/Nebulosa/Seleccion IA - compilados/"`. El remote `gdrive` ya está
+configurado. **El MCP de Drive no sirve para esto**: sube pasando el contenido en base64 por la
+conversación y un clip de 20 s ya cuesta ~53 mil tokens. Ojo que rclone usa un client_id
+compartido que deja de funcionar durante 2026; habrá que crear uno propio.
+
 ## Ground truth: de dónde salen las etiquetas
 
 `refs.txt` es el ground truth. Formato: un nombre por línea, prefijo `-` = toma mala.
