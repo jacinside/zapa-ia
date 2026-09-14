@@ -318,9 +318,19 @@ def cmd_compilado(a):
     if a.orden == "tempo":
         # Ordenar por tempo hace que los empalmes no salten de 90 a 170 BPM, y deja
         # juntos los tramos de una misma toma (mismo tempo -> enganchan solos).
-        # El tempo se pliega a una octava [80, 160): beat_track devuelve a veces el
-        # doble (198.8 en vez de 99.4) y eso mandaba un tramo al extremo de la lista.
-        def _plegado(t):
+        # Cadena por vecino más cercano en tempo, contando dobles y mitades como
+        # iguales. Plegar a una octava fija no alcanzaba: 161.5 caía como "80.75"
+        # y abría el compilado para saltar a 89 en el tramo siguiente.
+        import math
+
+        def _dist(ta, tb):
+            if ta != ta or tb != tb:
+                return 1.0
+            return min(abs(math.log(ta / (tb * m))) for m in (0.5, 1.0, 2.0))
+
+        pend = list(tramos)
+        # Arranca por el más lento (plegado) para que el compilado vaya subiendo.
+        def _fold(t):
             if t != t:
                 return 1e9
             while t >= 160:
@@ -328,7 +338,16 @@ def cmd_compilado(a):
             while t < 80:
                 t *= 2.0
             return t
-        tramos.sort(key=lambda t: (_plegado(t[4]), t[0], t[1]))
+        pend.sort(key=lambda t: _fold(t[4]))
+        orden, act = [pend.pop(0)], None
+        while pend:
+            act = orden[-1]
+            # Misma toma = mismo tempo real: va pegada aunque el número difiera un poco.
+            j = min(range(len(pend)),
+                    key=lambda k: (_dist(act[4], pend[k][4]) - (0.05 if pend[k][0] == act[0] else 0.0),
+                                   pend[k][1]))
+            orden.append(pend.pop(j))
+        tramos = orden
     else:
         tramos.sort(key=lambda t: -t[5])
 
