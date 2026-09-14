@@ -97,6 +97,8 @@ def _pesos(a):
 
 
 def _load(a):
+    if getattr(a, "sync", False):
+        _sync_previo(a)
     con = cache.connect(a.db)
     prefix = str(Path(a.root).resolve())
     rows, files = cache.load_windows(con, a.sr, a.win, a.hop, prefix)
@@ -410,7 +412,9 @@ def cmd_sync(a):
         plist, log, ok, err = instalar_launchd(a.root, a.instalar_launchd, a.meses, a.jobs,
                                                sys.executable)
         print(f"LaunchAgent {'instalado' if ok else 'ERROR: ' + err}: {plist}\n"
-              f"corre todos los días a las {a.instalar_launchd}:00, log en {log}")
+              f"corre al iniciar sesión y cada {a.instalar_launchd} h con la máquina prendida; "
+              f"log en {log}\n"
+              f"para sacarlo: launchctl unload -w {plist} && rm {plist}")
         return
     if a.destino is None:
         a.destino = str(Path(a.root) / "drive")
@@ -431,8 +435,21 @@ def cmd_sync(a):
         cmd_extract(ns)
 
 
-def instalar_launchd(root, hora, meses, jobs, python):
-    """Escribe y carga un LaunchAgent que corre 'zapaia sync --extraer' todos los días."""
+def _sync_previo(a):
+    """--sync: antes de rankear/compilar, traer lo nuevo de Drive y procesarlo."""
+    ns = argparse.Namespace(root=a.root, db=a.db, sr=a.sr, win=a.win, hop=a.hop,
+                            meses=a.sync_meses, desde=None, origen="gdrive:Zapadas New/Nebulosa",
+                            destino=None, excluir=None, dry_run=False, extraer=True,
+                            jobs=max(os.cpu_count() // 2, 1), instalar_launchd=None)
+    print("── sync previo ──")
+    cmd_sync(ns)
+    print("──")
+
+
+def instalar_launchd(root, cada_horas, meses, jobs, python):
+    """LaunchAgent que corre 'zapaia sync --extraer' al iniciar sesión y cada N horas
+    mientras la máquina esté prendida. No depende de una hora fija: si estuvo apagada,
+    corre en cuanto vuelve. Sin novedades tarda segundos."""
     proyecto = str(Path(".").resolve())
     label = "com.zapaia.sync"
     plist = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
@@ -448,7 +465,8 @@ def instalar_launchd(root, hora, meses, jobs, python):
 {xml_args}
     </array>
     <key>WorkingDirectory</key><string>{proyecto}</string>
-    <key>StartCalendarInterval</key><dict><key>Hour</key><integer>{hora}</integer><key>Minute</key><integer>0</integer></dict>
+    <key>RunAtLoad</key><true/>
+    <key>StartInterval</key><integer>{int(cada_horas * 3600)}</integer>
     <key>StandardOutPath</key><string>{log}</string>
     <key>StandardErrorPath</key><string>{log}</string>
     <key>EnvironmentVariables</key><dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
@@ -670,6 +688,9 @@ def main(argv=None):
                         help="veto: el sonido solo descalifica, no suma al puntaje")
         sp.add_argument("--sonido-min", type=float, default=0.15,
                         help="percentil de sonido bajo el cual se descarta (modo veto)")
+        sp.add_argument("--sync", action="store_true",
+                        help="antes de empezar, bajar de Drive lo nuevo (últimos --sync-meses) y procesarlo")
+        sp.add_argument("--sync-meses", type=int, default=3)
         sp.add_argument("--meses", type=int, default=None,
                         help="solo tomas de los últimos N meses (fecha de Drive o mtime)")
         sp.add_argument("--desde", default=None, help="solo tomas desde AAAA-MM-DD")
@@ -812,8 +833,9 @@ def main(argv=None):
     s.add_argument("--dry-run", action="store_true", help="mostrar qué bajaría, sin bajar")
     s.add_argument("--extraer", action="store_true", help="procesar lo bajado al terminar")
     s.add_argument("--jobs", type=int, default=max(os.cpu_count() // 2, 1))
-    s.add_argument("--instalar-launchd", type=int, metavar="HORA", default=None,
-                   help="instalar un LaunchAgent que corra sync --extraer todos los días a esa hora")
+    s.add_argument("--instalar-launchd", type=float, metavar="HORAS", default=None,
+                   help="instalar un LaunchAgent que corra sync --extraer al iniciar sesión y "
+                        "cada N horas mientras la máquina esté prendida")
     s.set_defaults(func=cmd_sync)
 
     for sp in (r, v, m, c, f):

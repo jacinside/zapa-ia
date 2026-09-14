@@ -409,8 +409,13 @@ eso), `Canciones`, `REAPER`, `NINJAMsessions`. Lo bajado va a `nebulosa/drive/AA
 - El compilado con filtro se nombra solo: `compilado_<filtro>_<perfil>_<fijo|dinamico>.mp3`
   (ej. `compilado_sesion-2026-09-09_balance_dinamico.mp3`), escribe un `.txt` con parámetros y
   lista, y mete lo mismo en los tags ID3 (title/comment) para verlo en el reproductor.
-- `--instalar-launchd HORA` escribe `~/Library/LaunchAgents/com.zapaia.sync.plist` que corre
-  `sync --meses N --extraer` a diario (log en `sync.log`). Requiere que la máquina esté prendida.
+- **Automatización: NO instalar nada en la máquina del usuario.** Decisión explícita: la
+  máquina no está prendida a horas fijas, y tampoco quiere que procese al encenderla porque en
+  ese momento la necesita para otra cosa ("no quiero que procese cuando la necesito"). Existe
+  `--instalar-launchd HORAS` (LaunchAgent con `RunAtLoad` + `StartInterval`) pero **no se usa**.
+  El flujo es manual y a demanda: `--sync` en `rank` / `compilado` / `eval` / `comparar` baja lo
+  nuevo de Drive (`--sync-meses`, default 3), lo procesa y recién después arma. "Dame el compilado
+  de la última zapada" = `compilado --sync --ultima-sesion --dinamico --ajustar-tempo`.
 
 En Drive/Nebulosa hay 957 MP3 en la raíz contra 849 locales: hay ~100 viejos que nunca se
 bajaron. `sync --meses 120` los traería.
