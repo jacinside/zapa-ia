@@ -1,12 +1,33 @@
 COMPILADO sesion-2026-09-09_balance_dinamico
 filtro=sesion-2026-09-09 perfil=balance modo=veto sort=score_med dinamico q0.5 crossfade=1.0s tempo<=0.04 pesos=timing:0.35,groove:0.3,tonal_outlier:0.1,afinacion:0.15,desarrollo:0.2,creatividad:0.2
 
-  0:00  pobre reencuentro- nebu 26.mp3                 15:59-17:00  (  61s, 198.8bpm, 0.63)
-  1:00  charly gozar- nebu 26.mp3                      0:29-4:01  ( 211s, 107.7bpm, 0.64)
-  4:30  reencuentro comienzo - nebu 26.mp3             0:00-2:30  ( 150s, 107.7bpm, 0.66)
-  7:00  pobre reencuentro- nebu 26.mp3                 1:29-6:31  ( 301s, 112.3bpm, 0.66)
- 12:00  reencuentro - nebu 26.mp3                      3:29-4:30  (  61s, 117.5bpm, 0.53)
- 13:00  reencuentro pre kiki- nebu 26.mp3              0:00-1:00  (  60s, 123.0bpm, 0.55)
- 13:59  reencuentro - nebu 26.mp3                      6:29-8:01  (  91s, 123.0bpm, 0.65)
+Scores en percentil del corpus completo (0-1). ejec=ejecución, int=interés, tim=timing, gro=groove, afi=afinación, ton=tonal_outlier, cre=creatividad, des=desarrollo, son=sonido. 'tramo' = ese tramo; 'toma' = el archivo entero.
 
-Duración total: 15.5 min
+  0:00  pobre reencuentro- nebu 26.mp3
+        16:00-17:00  60s  103.5bpm
+        tramo: score 0.63 | tim 0.41 gro 0.69 afi 0.82 ton 0.98 son 0.56
+        toma:  ejec 0.58 | int 0.52 cre 0.68 des 0.35
+  0:59  pobre reencuentro- nebu 26.mp3
+        1:30-6:30  300s  112.3bpm
+        tramo: score 0.64 | tim 0.62 gro 0.68 afi 0.74 ton 0.79 son 0.65
+        toma:  ejec 0.58 | int 0.52 cre 0.68 des 0.35
+  5:58  reencuentro comienzo - nebu 26.mp3
+        0:00-2:30  150s  107.7bpm
+        tramo: score 0.66 | tim 0.65 gro 0.76 afi 0.78 ton 0.54 son 0.59
+        toma:  ejec 0.69 | int 0.35 cre 0.36 des 0.34
+  8:27  charly gozar- nebu 26.mp3
+        0:30-4:00  210s  107.7bpm
+        tramo: score 0.63 | tim 0.58 gro 0.80 afi 0.61 ton 0.30 son 0.48
+        toma:  ejec 0.62 | int 0.46 cre 0.42 des 0.50
+ 11:56  reencuentro - nebu 26.mp3
+        3:30-4:30  60s  117.5bpm
+        tramo: score 0.53 | tim 0.37 gro 0.77 afi 0.48 ton 0.45 son 0.63
+        toma:  ejec 0.51 | int 0.45 cre 0.52 des 0.37
+ 12:55  reencuentro - nebu 26.mp3
+        6:30-8:00  90s  123.0bpm
+        tramo: score 0.63 | tim 0.55 gro 0.72 afi 0.81 ton 0.57 son 0.64
+        toma:  ejec 0.51 | int 0.45 cre 0.52 des 0.37
+ 14:24  reencuentro pre kiki- nebu 26.mp3
+        0:00-1:00  60s  120.3bpm
+        tramo: score 0.55 | tim 0.72 gro 0.56 afi 0.39 ton 0.15 son 0.51
+        toma:  ejec 0.45 | int 0.45 cre 0.51 des 0.39

@@ -1,20 +1,65 @@
 COMPILADO todo_balance_dinamico
 filtro=todo perfil=balance modo=veto sort=score_med dinamico q0.6 crossfade=1.0s tempo<=0.04 pesos=timing:0.35,groove:0.3,tonal_outlier:0.1,afinacion:0.15,desarrollo:0.2,creatividad:0.2
 
-  0:00  sisterborrachosa.mp3                           1:00-2:31  (  91s,  89.1bpm, 0.70)
-  1:29  bativiola gera joguito nebuzap 1.mp3           0:29-2:00  (  91s,  95.7bpm, 0.77)
-  2:59  bativiola gera joguito nebuzap 1.mp3           2:59-5:05  ( 126s,  99.4bpm x0.963, 0.77)
-  5:04  electro monkey town end 99.mp3                 3:29-4:33  (  63s,  99.4bpm x0.963, 0.69)
-  6:06  electro monkey town end 99.mp3                 4:59-6:03  (  63s,  99.4bpm x0.963, 0.78)
-  7:09  rolendeando.mp3                                4:59-10:12  ( 313s,  99.4bpm x0.963, 0.73)
- 12:21  rolendeando.mp3                                10:29-11:33  (  63s,  99.4bpm x0.963, 0.63)
- 13:23  telonero.mp3                                   2:59-6:30  ( 211s, 107.7bpm, 0.72)
- 16:53  telonero.mp3                                   6:59-8:00  (  61s, 107.7bpm, 0.77)
- 17:53  wizraard- nebu 25.mp3                          0:00-1:01  (  60s, 117.5bpm, 0.68)
- 18:52  wizraard- nebu 25.mp3                          1:29-4:01  ( 151s, 123.0bpm, 0.73)
- 21:23  nebu cabezon bread.mp3                         0:00-4:01  ( 241s, 123.0bpm, 0.73)
- 25:22  nebu cabezon bread.mp3                         4:30-5:31  (  61s, 123.0bpm, 0.63)
- 26:22  monkey doc  una lastima no me importa.mp3      0:00-2:31  ( 151s, 123.0bpm, 0.77)
- 28:52  floyesco nebu 25.mp3                           0:00-5:01  ( 300s, 123.0bpm, 0.68)
+Scores en percentil del corpus completo (0-1). ejec=ejecución, int=interés, tim=timing, gro=groove, afi=afinación, ton=tonal_outlier, cre=creatividad, des=desarrollo, son=sonido. 'tramo' = ese tramo; 'toma' = el archivo entero.
 
-Duración total: 33.9 min
+  0:00  sisterborrachosa.mp3
+        1:00-2:30  90s  89.1bpm
+        tramo: score 0.63 | tim 0.81 gro 0.61 afi 0.68 ton 0.57 son 0.42
+        toma:  ejec 0.64 | int 0.69 cre 0.55 des 0.83
+  1:29  bativiola gera joguito nebuzap 1.mp3
+        0:30-2:00  90s  95.7bpm
+        tramo: score 0.85 | tim 0.80 gro 0.91 afi 0.79 ton 0.74 son 0.66
+        toma:  ejec 0.71 | int 0.61 cre 0.66 des 0.57
+  2:58  bativiola gera joguito nebuzap 1.mp3
+        3:00-5:00  120s  99.4bpm
+        tramo: score 0.75 | tim 0.74 gro 0.86 afi 0.64 ton 0.71 son 0.63
+        toma:  ejec 0.71 | int 0.61 cre 0.66 des 0.57
+  4:57  electro monkey town end 99.mp3
+        3:30-4:30  60s  99.4bpm
+        tramo: score 0.69 | tim 0.90 gro 0.81 afi 0.37 ton 0.07 son 0.39
+        toma:  ejec 0.66 | int 0.65 cre 0.44 des 0.86
+  5:56  electro monkey town end 99.mp3
+        5:00-6:00  60s  99.4bpm
+        tramo: score 0.78 | tim 0.79 gro 0.80 afi 0.78 ton 0.66 son 0.47
+        toma:  ejec 0.66 | int 0.65 cre 0.44 des 0.86
+  6:55  rolendeando.mp3
+        5:00-10:00  300s  99.4bpm
+        tramo: score 0.72 | tim 0.81 gro 0.63 afi 0.80 ton 0.61 son 0.44
+        toma:  ejec 0.72 | int 0.59 cre 0.80 des 0.37
+ 11:54  rolendeando.mp3
+        10:30-11:30  60s  99.4bpm
+        tramo: score 0.63 | tim 0.77 gro 0.54 afi 0.63 ton 0.41 son 0.42
+        toma:  ejec 0.72 | int 0.59 cre 0.80 des 0.37
+ 12:53  telonero.mp3
+        3:00-6:30  210s  107.7bpm
+        tramo: score 0.71 | tim 0.78 gro 0.87 afi 0.69 ton 0.32 son 0.44
+        toma:  ejec 0.72 | int 0.68 cre 0.46 des 0.90
+ 16:22  telonero.mp3
+        7:00-8:00  60s  107.7bpm
+        tramo: score 0.77 | tim 0.85 gro 0.94 afi 0.50 ton 0.36 son 0.41
+        toma:  ejec 0.72 | int 0.68 cre 0.46 des 0.90
+ 17:21  wizraard- nebu 25.mp3
+        0:00-1:00  60s  117.5bpm
+        tramo: score 0.68 | tim 0.66 gro 0.73 afi 0.76 ton 0.48 son 0.72
+        toma:  ejec 0.72 | int 0.45 cre 0.23 des 0.68
+ 18:20  wizraard- nebu 25.mp3
+        1:30-4:00  150s  123.0bpm
+        tramo: score 0.73 | tim 0.67 gro 0.77 afi 0.67 ton 0.94 son 0.65
+        toma:  ejec 0.72 | int 0.45 cre 0.23 des 0.68
+ 20:49  nebu cabezon bread.mp3
+        0:00-4:00  240s  123.0bpm
+        tramo: score 0.75 | tim 0.84 gro 0.79 afi 0.53 ton 0.77 son 0.52
+        toma:  ejec 0.69 | int 0.56 cre 0.35 des 0.77
+ 24:48  nebu cabezon bread.mp3
+        4:30-5:30  60s  123.0bpm
+        tramo: score 0.63 | tim 0.74 gro 0.51 afi 0.54 ton 0.74 son 0.51
+        toma:  ejec 0.69 | int 0.56 cre 0.35 des 0.77
+ 25:47  monkey doc  una lastima no me importa.mp3
+        0:00-2:30  150s  123.0bpm
+        tramo: score 0.76 | tim 0.72 gro 0.84 afi 0.81 ton 0.62 son 0.53
+        toma:  ejec 0.76 | int 0.38 cre 0.17 des 0.58
+ 28:16  floyesco nebu 25.mp3
+        0:00-5:00  300s  123.0bpm
+        tramo: score 0.68 | tim 0.76 gro 0.65 afi 0.61 ton 0.54 son 0.66
+        toma:  ejec 0.64 | int 0.71 cre 0.59 des 0.82
