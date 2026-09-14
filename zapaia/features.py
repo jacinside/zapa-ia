@@ -133,6 +133,12 @@ def window_features(y, sr):
     f.update(exec_features(y, sr))
     f.update(harmony_features(y, sr))
     f.update(pifie_features(y, sr))
+    # intonacion_features NO se usa: probada sobre 3 tramos con voz desafinada /
+    # pifies de viola contra 3 tomas buenas, no los separa (5-13 cents vs 8-19).
+    # pYIN sigue la altura dominante de la mezcla (bajo, rítmica: afinados), no
+    # la voz; y un pifie es una nota equivocada pero afinada. Requiere separar
+    # la voz (Demucs) antes de volver a intentarlo. Ver CLAUDE.md.
+    f.update(grilla_features(y, sr))
     f["beat_strength"] = beat_strength(y, sr)
     return f
 
@@ -272,6 +278,7 @@ def pifie_features(y, sr, ctx_s=8.0, hop=512):
         corr = _KEY_P @ v                                 # 24 x n
         mejor = np.argmax(corr, axis=0)                   # tonalidad por frame
         fuera = np.einsum("ij,ji->i", (1.0 - _KEY_M[mejor]), C)
+        f["fuera_tono_eventos"] = tonal_eventos(fuera, hop, sr)
         f["fuera_tono_med"] = float(np.mean(fuera))
         # p95 capta PICOS: un pifie aislado se diluye en la media.
         f["fuera_tono_p95"] = float(np.percentile(fuera, 95))
@@ -280,3 +287,101 @@ def pifie_features(y, sr, ctx_s=8.0, hop=512):
     except Exception as e:
         print(f"pifie_features error: {e}", flush=True)
     return f
+
+
+# ---------------------------------------------------------------------------
+# Afinación MELÓDICA (voz / guitarra líder), a diferencia de tuning_dev, que
+# es el offset global de la mezcla y lo domina lo que más energía tonal tiene
+# (guitarras rítmicas, bajo). Una voz medio tono abajo sobre instrumentos
+# afinados no mueve tuning_dev. Caso real: sisterborrachosa 1:00-2:31 tenía
+# tuning_dev en el percentil 96 con la voz desafinada.
+#
+# Se sigue la altura predominante en la banda 80-1000 Hz con pYIN y se mide
+# el desvío en cents a la nota más cercana (corregido por la afinación global
+# de la ventana). Vibrato y bends lo inflan un poco; una voz desafinada o una
+# viola pifiando lo inflan mucho y de forma sostenida.
+# ---------------------------------------------------------------------------
+
+def intonacion_features(y, sr, fmin=80.0, fmax=1000.0, hop=512):
+    from scipy.signal import butter, sosfiltfilt
+    f = {"inton_mad": float("nan"), "inton_p90": float("nan"), "inton_voiced": float("nan")}
+    try:
+        sos = butter(4, [fmin * 0.9, min(fmax * 1.5, sr / 2 - 1)], btype="band", fs=sr, output="sos")
+        yb = sosfiltfilt(sos, y).astype(np.float32)
+        f0, vflag, vprob = librosa.pyin(yb, fmin=fmin, fmax=fmax, sr=sr,
+                                        frame_length=2048, hop_length=hop)
+        ok = np.isfinite(f0) & (vprob >= 0.6)
+        f["inton_voiced"] = float(np.mean(ok))
+        if ok.sum() < 20:
+            return f
+        try:
+            off = float(librosa.estimate_tuning(y=yb, sr=sr)) * 100.0   # cents
+        except Exception:
+            off = 0.0
+        cents = 1200.0 * np.log2(f0[ok] / 440.0) - off
+        dev = np.abs(((cents + 50.0) % 100.0) - 50.0)                # distancia a la nota
+        f["inton_mad"] = float(np.median(dev))
+        f["inton_p90"] = float(np.percentile(dev, 90))
+    except Exception as e:
+        print(f"intonacion_features error: {e}", flush=True)
+    return f
+
+
+def grilla_features(y, sr, subdiv=4):
+    """Timing contra una grilla de subdivisiones, no contra el beat principal.
+
+    onset_dev_mad castigaba la síncopa: un ataque en el "&" daba desvío 0.5.
+    Acá el desvío es a la posición métrica más cercana (16avos con subdiv=4), y
+    `grid_consistency` mide si los ataques caen siempre en las mismas posiciones
+    (síncopa tight = histograma concentrado) o en cualquier lado (timing flojo =
+    histograma plano). Ver docs/review-2026-09-12.md §1.3.
+    """
+    f = {"onset_dev_grid": float("nan"), "grid_consistency": float("nan"), "tempo_cont": float("nan")}
+    try:
+        oenv = librosa.onset.onset_strength(y=y, sr=sr)
+        # Tempo continuo: mediana de la estimación por frame, sin la grilla de beat_track.
+        tl = librosa.feature.tempo(onset_envelope=oenv, sr=sr, aggregate=None)
+        tl = tl[np.isfinite(tl) & (tl > 0)]
+        if len(tl):
+            f["tempo_cont"] = float(np.median(tl))
+        _, beats = librosa.beat.beat_track(onset_envelope=oenv, sr=sr, units="time")
+        if len(beats) < 6:
+            return f
+        onsets = librosa.onset.onset_detect(y=y, sr=sr, onset_envelope=oenv, units="time", backtrack=True)
+        inside = onsets[(onsets >= beats[0]) & (onsets < beats[-1])]
+        if len(inside) < 6:
+            return f
+        ibi = np.diff(beats)
+        j = np.clip(np.searchsorted(beats, inside) - 1, 0, len(beats) - 2)
+        phase = np.clip((inside - beats[j]) / np.maximum(ibi[j], EPS), 0.0, 1.0)
+        pos = phase * subdiv
+        f["onset_dev_grid"] = float(np.median(np.abs(pos - np.round(pos))))   # 0..0.5 de subdivisión
+        # Consistencia: entropía normalizada del histograma de fases (16 bins).
+        h, _ = np.histogram(phase, bins=16, range=(0.0, 1.0))
+        p = h / max(h.sum(), 1)
+        p = p[p > 0]
+        f["grid_consistency"] = float(1.0 - (-np.sum(p * np.log(p)) / np.log(16)))
+    except Exception as e:
+        print(f"grilla_features error: {e}", flush=True)
+    return f
+
+
+def tonal_eventos(fuera, hop, sr, umbral=0.55, min_dur_s=0.15):
+    """Excursiones sobre un umbral ABSOLUTO (no el percentil 98 de la ventana,
+    que marcaba el 2% de frames por construcción). Devuelve eventos por minuto."""
+    if fuera is None or len(fuera) == 0:
+        return float("nan")
+    m = fuera >= umbral
+    ev, i, n = 0, 0, len(m)
+    minf = max(int(min_dur_s * sr / hop), 1)
+    while i < n:
+        if m[i]:
+            j = i
+            while j + 1 < n and m[j + 1]:
+                j += 1
+            if j - i + 1 >= minf:
+                ev += 1
+            i = j + 1
+        else:
+            i += 1
+    return float(ev / (n * hop / sr / 60.0))
