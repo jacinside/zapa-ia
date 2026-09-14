@@ -364,11 +364,16 @@ def cmd_compilado(a):
           f"| tomas por '{a.sort_by}' | tramos por '{col}' | orden {a.orden} "
           f"| crossfade {crossfade}s"
           + (f" | ajuste de tempo ≤{a.max_stretch*100:.0f}%" if a.ajustar_tempo else "") + "\n")
-    audio, usados = compilado.construir(
-        [(t[0], t[1], t[2]) for t in tramos], crossfade, a.fade, not a.sin_snap,
-        ajustar_tempo=a.ajustar_tempo, max_stretch=a.max_stretch, snap_fin=a.dinamico)
-    if audio is None:
-        sys.exit("No se pudo construir el compilado.")
+    if a.solo_lista:
+        # Sin renderizar audio: misma selección, tempo del caché, sin ajuste.
+        audio = None
+        usados = [(t[0], t[1], t[2], t[4], 1.0) for t in tramos]
+    else:
+        audio, usados = compilado.construir(
+            [(t[0], t[1], t[2]) for t in tramos], crossfade, a.fade, not a.sin_snap,
+            ajustar_tempo=a.ajustar_tempo, max_stretch=a.max_stretch, snap_fin=a.dinamico)
+        if audio is None:
+            sys.exit("No se pudo construir el compilado.")
 
     # El filtro y los parámetros quedan en el nombre, en un .txt al lado y en los
     # tags ID3: hay que poder saber qué es cada compilado sin volver a la terminal.
@@ -380,22 +385,46 @@ def cmd_compilado(a):
               f"{'dinamico q' + str(a.umbral_q) if a.dinamico else 'fijo ' + str(a.seg_win) + 'win'} "
               f"crossfade={crossfade}s{' tempo<=' + str(a.max_stretch) if a.ajustar_tempo else ''} "
               f"pesos=" + ",".join(f"{k}:{v}" for k, v in _pesos(a).items()))
-    lineas = [f"COMPILADO {codigo}", params, ""]
+
+    # Scores del tramo: mediana de las ventanas que lo componen (dimensiones de
+    # ventana) y las de archivo desde la tabla agregada. Todo en percentil 0-1 del
+    # corpus completo: 0.90 = mejor que el 90% de las ventanas de todo el archivo.
+    dfile = d.set_index("Ruta")
+    dims_v = ["timing", "groove", "afinacion", "tonal_outlier", "sonido"]
+    dims_f = ["interes", "creatividad", "desarrollo", "ejecucion"]
+    lineas = [f"COMPILADO {codigo}", params, "",
+              "Scores en percentil del corpus completo (0-1). ejec=ejecución, int=interés, "
+              "tim=timing, gro=groove, afi=afinación, ton=tonal_outlier, cre=creatividad, "
+              "des=desarrollo, son=sonido. 'tramo' = ese tramo; 'toma' = el archivo entero.", ""]
     t0 = 0.0
     for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
         dur = fin - ini
         aj = f" x{ratio:.3f}" if abs(ratio - 1.0) > 1e-3 else ""
-        lineas.append(f"{_mmss(t0):>6s}  {toma[:44]:46s} {_mmss(ini)}-{_mmss(fin)}  "
-                      f"({dur:4.0f}s, {tempo:5.1f}bpm{aj}, {sc_:.2f})")
+        g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
+        w = {k: float(g[k].median()) if len(g) and k in g else float("nan") for k in dims_v}
+        w["score"] = float(g["score"].median()) if len(g) else sc_
+        fr = dfile.loc[ruta] if ruta in dfile.index else None
+        f_ = {k: (float(fr[k]) if fr is not None and k in fr else float("nan")) for k in dims_f}
+        lineas.append(f"{_mmss(t0):>6s}  {toma}")
+        lineas.append(f"        {_mmss(ini)}-{_mmss(fin)}  {dur:.0f}s  {tempo:.1f}bpm{aj}")
+        lineas.append(f"        tramo: score {w['score']:.2f} | tim {w['timing']:.2f} "
+                      f"gro {w['groove']:.2f} afi {w['afinacion']:.2f} ton {w['tonal_outlier']:.2f} "
+                      f"son {w['sonido']:.2f}")
+        lineas.append(f"        toma:  ejec {f_['ejecucion']:.2f} | int {f_['interes']:.2f} "
+                      f"cre {f_['creatividad']:.2f} des {f_['desarrollo']:.2f}")
         t0 += dur - crossfade
-    print("\n".join("  " + l for l in lineas[3:]))
+    print("\n".join("  " + l for l in lineas[5:]))
 
-    audio.export(a.out, format="mp3", bitrate=a.bitrate,
-                 tags={"title": f"Zapa-IA {codigo}", "artist": "Nebulosa",
-                       "album": "Zapa-IA compilados", "comment": params})
-    lineas.append(f"\nDuración total: {len(audio)/60000:.1f} min")
+    if audio is not None:
+        audio.export(a.out, format="mp3", bitrate=a.bitrate,
+                     tags={"title": f"Zapa-IA {codigo}", "artist": "Nebulosa",
+                           "album": "Zapa-IA compilados", "comment": params})
+        lineas.append(f"\nDuración total: {len(audio)/60000:.1f} min")
     Path(a.out).with_suffix(".txt").write_text("\n".join(lineas) + "\n", encoding="utf-8")
-    print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}  (+ .txt con la lista)")
+    if audio is not None:
+        print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}  (+ .txt con la lista)")
+    else:
+        print(f"\nLista -> {Path(a.out).with_suffix('.txt')}  (sin audio: --solo-lista)")
 
 
 DRIVE_FEEDBACK = "gdrive:Zapadas New/Nebulosa/Seleccion IA - compilados/feedback"
@@ -797,6 +826,8 @@ def main(argv=None):
                    help="time-stretch leve para que el tempo enganche con el tramo anterior")
     m.add_argument("--max-stretch", type=float, default=0.04,
                    help="ajuste máximo de tempo (0.04 = 4%%)")
+    m.add_argument("--solo-lista", action="store_true",
+                   help="no renderizar audio: solo escribir el .txt con la lista y los scores")
     m.set_defaults(func=cmd_compilado)
 
     v = sub.add_parser("eval", help="medir el ranking contra refs.txt")
