@@ -40,14 +40,19 @@ SONIDO = {
 
 # ¿Toca preciso? Estabilidad y alineación rítmica.
 TIMING = {
-    "ibi_cv":         (-1, 0.50),   # estabilidad de tempo (adimensional)
-    "tempo_drift":    (-1, 0.35),   # deriva sostenida
-    "onset_dev_mad":  (-1, 0.15),   # desvío al beat, en fracción de beat
-    # onset_dev_mad bajó de 0.40 a 0.15: mide distancia al beat PRINCIPAL, así que
-    # castiga la síncopa igual que el timing flojo. Medido: mediana del corpus
-    # 0.227 contra 0.25 de una fase uniforme al azar, 74% de ventanas >= 0.20.
-    # Es casi ruido acá. El reemplazo (desvío a grilla de subdivisiones +
-    # consistencia de grilla) requiere FEATURE_VERSION 5. Ver review §1.3.
+    "ibi_cv":         (-1, 0.35),   # estabilidad de tempo (adimensional)
+    "tempo_drift":    (-1, 0.25),   # deriva sostenida
+    "onset_dev_mad":  (-1, 0.40),   # desvío al beat, en fracción de beat
+    # Historia de este peso, porque es una lección:
+    # - P0 lo bajó de 0.40 a 0.15 por estadística: mediana del corpus 0.227 contra
+    #   0.25 de fase uniforme al azar, 74% de ventanas >= 0.20 -> "casi ruido".
+    # - Con etiquetas humanas (5 tomas elegidas para mezclar + 2 que el usuario
+    #   descartó por "voz desafinada, pifies de viola") volver a 0.40 SUBE la
+    #   mediana de los positivos (82.9 -> 89.1) y BAJA un negativo (92.6 -> 79.7):
+    #   los pifies dejan ataques fuera de grilla, y esta feature los olía.
+    # Criterio 5 del review (correlación con humanos) le gana al 3 (estabilidad).
+    # El reemplazo por grilla de subdivisiones (grilla_features) está en
+    # features.py y entra en el próximo reprocesamiento.
 }
 
 # ¿Hay pulso y la banda está enganchada?

@@ -484,6 +484,33 @@ pero el de Drive (el que tiene el `.RPP`) pesa 24.383.737 bytes y el local 13.71
 diferencia, **no es la misma toma**. Se descartó por tamaño, criterio objetivo e independiente del
 resultado. **Verificar tamaño o hash antes de usar cualquier cosa como ground truth.**
 
+### Primeros negativos (2026-09-14) y lo que enseñaron
+
+El usuario escuchó el compilado de todos los tiempos y marcó `sisterborrachosa 1:00-2:31`
+("la voz desafinada, varios pifies de viola") y los dos tramos de `bativiola gera joguito
+nebuzap 1` ("igual estos dos"; "la bata está bien, es lo mejor del tema, pero el resto pifia
+bastante"). El score los tenía en 0.70 y 0.77, `bativiola` era **#5 de 733**. Con esos dos
+negativos contra los 5 positivos, **AUC = 0.00**: los dos descartados quedaban por encima de
+todos los elegidos.
+
+Diagnóstico por feature: lo que el score premiaba era **la batería** — `ibi_cv` pct 0.91,
+`band_sync` 0.94–0.98, `beat_strength` 0.99, `tuning_dev` 0.96 (afinación *global*, dominada por
+bajo y rítmica). No existe ninguna feature que escuche voz ni melodía. La regla del usuario:
+**"la bata importa, pero solo si el resto no pifia tanto"** → la limpieza del resto debería
+actuar como condición, no como sumando que se promedia.
+
+Se probaron variantes contra las 7 etiquetas: devolver `onset_dev_mad` a 0.40 fue lo único que
+mejoró ambos lados (AUC 0.00 → 0.40, positivos 82.9 → 89.1, `sisterborrachosa` 92.6 → 79.7).
+`bativiola` no baja con ninguna combinación de features existentes.
+
+**Intento fallido, documentado para no repetirlo**: `intonacion_features` (pYIN sobre la banda
+80–1000 Hz, con y sin separación armónica, desvío en cents a la nota más cercana). Sobre los 3
+tramos malos vs 3 buenos: malos 5–13 cents, buenos 8–19. **No separa.** Causas: pYIN sigue la
+altura dominante de la mezcla (bajo, rítmica: afinados), no la voz; la fracción "cantada" es
+6–32% aun separando; y un pifie de viola es una nota **equivocada pero afinada**, invisible en
+cents. Queda en `features.py` sin conectar. Detectar voz desafinada requiere separar la voz
+(Demucs/PyTorch) primero; detectar pifies requiere contexto armónico, no afinación.
+
 ### Estado actual y resultado
 
 4 positivos verificados byte a byte o por referencia directa, más 1 sin verificar:

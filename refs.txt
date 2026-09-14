@@ -38,3 +38,8 @@ zapadita fluyendo.mp3
 # NEGATIVOS — agregar acá las tomas que se sepa que NO sirven.
 # (todavía vacío: hacen falta para poder medir AUC / precision@10)
 # ---------------------------------------------------------------------------
+# Juicio directo del usuario (2026-09-14) al escuchar el compilado de todos los tiempos:
+# "la voz desafinada, varios pifies de viola" en sisterborrachosa 1:00-2:31, "igual estos dos"
+# para los tramos de bativiola 0:29-2:00 y 2:59-5:05. El score los tenía en 0.70 / 0.77.
+-sisterborrachosa.mp3
+-bativiola gera joguito nebuzap 1.mp3
