@@ -39,7 +39,12 @@ CREATE TABLE IF NOT EXISTS pares (
     FOREIGN KEY (seg_a) REFERENCES segmentos(id),
     FOREIGN KEY (seg_b) REFERENCES segmentos(id)
 );
-PRAGMA user_version = 1;
+-- Manifest de ingesta desde Drive: identidad por drive_id + size + modtime.
+CREATE TABLE IF NOT EXISTS drive_files (
+    drive_id TEXT PRIMARY KEY, origen TEXT, path_drive TEXT, name TEXT,
+    size INTEGER, modtime TEXT, local_path TEXT, ts REAL
+);
+PRAGMA user_version = 2;
 """
 
 

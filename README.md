@@ -37,11 +37,19 @@ python3 -m venv .venv
 
 # 3. Un solo MP3 con los mejores tramos pegados
 .venv/bin/python -m zapaia compilado ensayos/ --top 10 --seg-win 3 --out compilado.mp3
+#    tramos de largo variable (siguen mientras la racha sea buena), varios por toma,
+#    cortes al beat y tempo ajustado para que enganchen:
+.venv/bin/python -m zapaia compilado ensayos/ --dinamico --ajustar-tempo --duracion-max 30
 
 # 4. Validar
 .venv/bin/python -m zapaia diag ensayos/    # ¿alguna feature no discrimina?
 .venv/bin/python -m zapaia eval ensayos/    # ¿dónde caen las refs de refs.txt?
 .venv/bin/python -m zapaia dupes ensayos/   # duplicados por huella de audio
+
+# 0. (opcional) Traer de Google Drive solo lo nuevo, con rclone configurado
+.venv/bin/python -m zapaia sync ensayos/ --meses 3 --extraer
+.venv/bin/python -m zapaia compilado ensayos/ --ultima-sesion --dinamico --ajustar-tempo
+#    -> compilado_sesion-AAAA-MM-DD_balance_dinamico.mp3 (+ .txt con la lista)
 
 # 5. Enseñarle tu criterio: pares A/B ("¿cuál rescatarías?")
 .venv/bin/python -m zapaia comparar ensayos/ --n 10            # reproduce con afplay y pregunta

@@ -120,6 +120,7 @@ def cmd_rank(a):
         before = len(d)
         d = d[d["n_win"] >= a.min_win]
         print(f"Filtro min_win={a.min_win}: {before} -> {len(d)} tomas")
+    d = _filtrar_fechas(a, con, d)
 
     groups = dedupe.find_groups(cache.load_signatures(con, str(Path(a.root).resolve())))
     d["dup_grupo"] = d["Ruta"].map(groups).fillna(-1).astype(int)
@@ -247,6 +248,7 @@ def cmd_compilado(a):
     d = _agg(a, dfw, files)
     if a.min_win:
         d = d[d["n_win"] >= a.min_win]
+    d = _filtrar_fechas(a, con, d)
     grupos = dedupe.find_groups(cache.load_signatures(con, str(Path(a.root).resolve())))
     d["dup_grupo"] = d["Ruta"].map(grupos).fillna(-1).astype(int)
     d = d.sort_values(a.sort_by, ascending=False).drop_duplicates("dup_grupo", keep="first")
@@ -289,33 +291,164 @@ def cmd_compilado(a):
     if col not in ("timing", "groove", "afinacion", "tonal_outlier", "sonido",
                    "ejec_ventana", "ejec_limpia"):
         col = "score"
-    tramos, info = [], []
-    for _, r in d.iterrows():
-        g = dfw[dfw["path"] == r["Ruta"]]
-        ini, fin = compilado.mejor_tramo(g, a.seg_win, a.win, col=col)
-        tramos.append((r["Ruta"], ini, fin))
-        info.append((r["Toma"], r.get("tempo", float("nan")), r[a.sort_by]))
+    # (ruta, ini, fin, toma, tempo_cache, score_tramo)
+    tramos = []
+    if a.dinamico:
+        # El umbral es un cuantil del score de ventana de TODO el corpus: un tramo
+        # sigue mientras sus ventanas estén en el top (1 - umbral_q) del archivo.
+        umbral = float(dfw[col].quantile(a.umbral_q))
+        for _, r in d.iterrows():
+            g = dfw[dfw["path"] == r["Ruta"]]
+            for ini, fin, sc_, tempo in compilado.tramos_dinamicos(
+                    g, a.win, umbral, min_win=a.seg_win, max_win=a.max_seg_win,
+                    max_tramos=a.tramos_por_toma, col=col, hop_s=a.hop,
+                    max_silencio=a.max_silencio):
+                tramos.append((r["Ruta"], ini, fin, r["Toma"], tempo, sc_))
+        if not tramos:
+            sys.exit("Ninguna toma tiene una racha sobre el umbral. Bajá --umbral-q.")
+    else:
+        for _, r in d.iterrows():
+            g = dfw[dfw["path"] == r["Ruta"]]
+            ini, fin = compilado.mejor_tramo(g, a.seg_win, a.win, col=col, hop_s=a.hop)
+            tramos.append((r["Ruta"], ini, fin, r["Toma"], r.get("tempo", float("nan")),
+                           float(r[a.sort_by])))
 
-    print(f"\nArmando con {len(tramos)} tramos de ~{a.seg_win * a.win / 60:.1f} min "
-          f"| perfil {a.perfil} | tomas por '{a.sort_by}' | tramos por '{col}' "
-          f"| orden {a.orden}\n")
-    audio, usados = compilado.construir(tramos, a.crossfade, a.fade, not a.sin_snap)
+    if a.orden == "tempo":
+        # Ordenar por tempo hace que los empalmes no salten de 90 a 170 BPM, y deja
+        # juntos los tramos de una misma toma (mismo tempo -> enganchan solos).
+        tramos.sort(key=lambda t: (t[4] if t[4] == t[4] else 1e9, t[0], t[1]))
+    else:
+        tramos.sort(key=lambda t: -t[5])
+
+    if a.duracion_max:
+        acum, corte = 0.0, []
+        for t in tramos:
+            if acum >= a.duracion_max * 60:
+                break
+            corte.append(t)
+            acum += t[2] - t[1]
+        tramos = corte
+
+    crossfade = a.crossfade if a.crossfade is not None else (1.0 if a.dinamico else 3.0)
+    modo_txt = (f"dinámico (umbral q{a.umbral_q}, {a.seg_win}-{a.max_seg_win} ventanas, "
+                f"hasta {a.tramos_por_toma} por toma)" if a.dinamico
+                else f"fijo ({a.seg_win} ventanas)")
+    print(f"\nArmando {len(tramos)} tramos, modo {modo_txt} | perfil {a.perfil} "
+          f"| tomas por '{a.sort_by}' | tramos por '{col}' | orden {a.orden} "
+          f"| crossfade {crossfade}s"
+          + (f" | ajuste de tempo ≤{a.max_stretch*100:.0f}%" if a.ajustar_tempo else "") + "\n")
+    audio, usados = compilado.construir(
+        [(t[0], t[1], t[2]) for t in tramos], crossfade, a.fade, not a.sin_snap,
+        ajustar_tempo=a.ajustar_tempo, max_stretch=a.max_stretch, snap_fin=a.dinamico)
     if audio is None:
         sys.exit("No se pudo construir el compilado.")
 
-    t = 0.0
-    for (toma, tempo, sc_), (_, ini, fin) in zip(info, usados):
+    # El filtro y los parámetros quedan en el nombre, en un .txt al lado y en los
+    # tags ID3: hay que poder saber qué es cada compilado sin volver a la terminal.
+    filtro = getattr(a, "_filtro", "todo")
+    codigo = f"{filtro}_{a.perfil}_{'dinamico' if a.dinamico else 'fijo'}"
+    if a.out == "compilado.mp3":
+        a.out = f"compilado_{codigo}.mp3"
+    params = (f"filtro={filtro} perfil={a.perfil} modo={a.modo} sort={a.sort_by} "
+              f"{'dinamico q' + str(a.umbral_q) if a.dinamico else 'fijo ' + str(a.seg_win) + 'win'} "
+              f"crossfade={crossfade}s{' tempo<=' + str(a.max_stretch) if a.ajustar_tempo else ''} "
+              f"pesos=" + ",".join(f"{k}:{v}" for k, v in _pesos(a).items()))
+    lineas = [f"COMPILADO {codigo}", params, ""]
+    t0 = 0.0
+    for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
         dur = fin - ini
-        print(f"  {int(t)//60:3d}:{int(t)%60:02d}  {toma[:44]:46s} "
-              f"desde {int(ini)//60:d}:{int(ini)%60:02d}  "
-              f"({dur:4.0f}s, {tempo:5.1f}bpm, {a.sort_by}={sc_:.2f})")
-        t += dur - a.crossfade
+        aj = f" x{ratio:.3f}" if abs(ratio - 1.0) > 1e-3 else ""
+        lineas.append(f"{_mmss(t0):>6s}  {toma[:44]:46s} {_mmss(ini)}-{_mmss(fin)}  "
+                      f"({dur:4.0f}s, {tempo:5.1f}bpm{aj}, {sc_:.2f})")
+        t0 += dur - crossfade
+    print("\n".join("  " + l for l in lineas[3:]))
 
-    audio.export(a.out, format="mp3", bitrate=a.bitrate)
-    print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}")
+    audio.export(a.out, format="mp3", bitrate=a.bitrate,
+                 tags={"title": f"Zapa-IA {codigo}", "artist": "Nebulosa",
+                       "album": "Zapa-IA compilados", "comment": params})
+    lineas.append(f"\nDuración total: {len(audio)/60000:.1f} min")
+    Path(a.out).with_suffix(".txt").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}  (+ .txt con la lista)")
 
 
 DRIVE_FEEDBACK = "gdrive:Zapadas New/Nebulosa/Seleccion IA - compilados/feedback"
+
+
+def _filtrar_fechas(a, con, d):
+    """Aplica --meses / --desde / --ultima-sesion al DataFrame de archivos, si se pidieron."""
+    from . import sync as sy
+    desde = sy.desde_argumentos(getattr(a, "meses", None), getattr(a, "desde", None))
+    ultima = getattr(a, "ultima_sesion", False)
+    if desde is None and not ultima:
+        return d
+    fechas = sy.fechas_locales(con, list(d["Ruta"]))
+    antes = len(d)
+    d = sy.filtrar_por_fecha(d, fechas, desde=desde, ultima_sesion=ultima)
+    if d.empty:
+        sys.exit("Ningún archivo en ese rango de fechas. ¿Corriste 'zapaia sync'?")
+    a._filtro = sy.etiqueta_filtro(d, desde=desde, ultima_sesion=ultima,
+                                   meses=getattr(a, "meses", None))
+    rango = f"{sy.dia_local(d['_fecha'].min())} a {sy.dia_local(d['_fecha'].max())}"
+    print(f"Filtro de fechas [{a._filtro}]: {antes} -> {len(d)} tomas ({rango})")
+    return d
+
+
+def cmd_sync(a):
+    """Baja de Drive los MP3 nuevos de los últimos N meses y (opcional) los procesa."""
+    from . import sync as sy
+    if a.instalar_launchd is not None:
+        plist, log, ok, err = instalar_launchd(a.root, a.instalar_launchd, a.meses, a.jobs,
+                                               sys.executable)
+        print(f"LaunchAgent {'instalado' if ok else 'ERROR: ' + err}: {plist}\n"
+              f"corre todos los días a las {a.instalar_launchd}:00, log en {log}")
+        return
+    if a.destino is None:
+        a.destino = str(Path(a.root) / "drive")
+    con = cache.connect(a.db)
+    desde = sy.desde_argumentos(a.meses, a.desde)
+    excluir = tuple(a.excluir) if a.excluir else sy.EXCLUIR_DEFAULT
+    bajados, sl, sm, errores = sy.sincronizar(
+        con, a.root, a.destino, desde, origen=a.origen, excluir=excluir, dry_run=a.dry_run)
+    print(f"\n{'Bajaría' if a.dry_run else 'Bajados'}: {len(bajados)} | ya locales (registrados): {sl} "
+          f"| ya en manifest: {sm} | errores: {len(errores)}")
+    if a.dry_run or not bajados:
+        return
+    if a.extraer:
+        print("\nProcesando lo nuevo...")
+        ns = argparse.Namespace(root=a.root, db=a.db, sr=a.sr, win=a.win, hop=a.hop,
+                                jobs=a.jobs, sample=None, seed=0, include=[], files_from=None,
+                                force=False, reintentar_errores=False)
+        cmd_extract(ns)
+
+
+def instalar_launchd(root, hora, meses, jobs, python):
+    """Escribe y carga un LaunchAgent que corre 'zapaia sync --extraer' todos los días."""
+    proyecto = str(Path(".").resolve())
+    label = "com.zapaia.sync"
+    plist = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+    log = Path(proyecto) / "sync.log"
+    args = [python, "-m", "zapaia", "sync", root, "--meses", str(meses), "--extraer",
+            "--jobs", str(jobs)]
+    xml_args = "\n".join(f"        <string>{x}</string>" for x in args)
+    contenido = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>Label</key><string>{label}</string>
+    <key>ProgramArguments</key><array>
+{xml_args}
+    </array>
+    <key>WorkingDirectory</key><string>{proyecto}</string>
+    <key>StartCalendarInterval</key><dict><key>Hour</key><integer>{hora}</integer><key>Minute</key><integer>0</integer></dict>
+    <key>StandardOutPath</key><string>{log}</string>
+    <key>StandardErrorPath</key><string>{log}</string>
+    <key>EnvironmentVariables</key><dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+</dict></plist>
+"""
+    plist.parent.mkdir(parents=True, exist_ok=True)
+    plist.write_text(contenido, encoding="utf-8")
+    subprocess.run(["launchctl", "unload", str(plist)], capture_output=True)
+    r = subprocess.run(["launchctl", "load", "-w", str(plist)], capture_output=True, text=True)
+    return plist, log, r.returncode == 0, r.stderr.strip()
 
 
 def _mmss(s):
@@ -527,6 +660,11 @@ def main(argv=None):
                         help="veto: el sonido solo descalifica, no suma al puntaje")
         sp.add_argument("--sonido-min", type=float, default=0.15,
                         help="percentil de sonido bajo el cual se descarta (modo veto)")
+        sp.add_argument("--meses", type=int, default=None,
+                        help="solo tomas de los últimos N meses (fecha de Drive o mtime)")
+        sp.add_argument("--desde", default=None, help="solo tomas desde AAAA-MM-DD")
+        sp.add_argument("--ultima-sesion", action="store_true",
+                        help="solo la última zapada: los archivos a <36 h del más reciente")
         sp.add_argument("--perfil", choices=list(scoring.PERFILES), default="balance",
                         help="balance: mezcla de todo (default). performances: solo "
                              "ejecución. ideas: solo interés musical, sin castigar "
@@ -578,7 +716,8 @@ def main(argv=None):
     m.add_argument("--top", type=int, default=10, help="cuántas tomas entran")
     m.add_argument("--seg-win", type=int, default=3,
                    help="ventanas por tramo (3 = 90s de cada toma)")
-    m.add_argument("--crossfade", type=float, default=3.0)
+    m.add_argument("--crossfade", type=float, default=None,
+                   help="segundos de crossfade (default 3, o 1 en modo dinámico)")
     m.add_argument("--fade", type=float, default=2.0, help="fade de entrada y salida")
     m.add_argument("--orden", choices=["tempo", "score"], default="tempo",
                    help="tempo = empalmes más suaves; score = de mejor a peor")
@@ -595,6 +734,23 @@ def main(argv=None):
                         "(score = el del perfil; las dimensiones de archivo no aplican a 90s)")
     m.add_argument("--sin-snap", action="store_true",
                    help="no pegar los cortes al beat más cercano")
+    m.add_argument("--dinamico", action="store_true",
+                   help="tramos de largo variable: siguen mientras la racha se mantenga "
+                        "sobre el umbral; varios por toma")
+    m.add_argument("--umbral-q", type=float, default=0.60,
+                   help="cuantil del score de ventana que define 'racha buena' (dinámico)")
+    m.add_argument("--max-seg-win", type=int, default=10,
+                   help="tope de ventanas por tramo (10 = 5 min) en modo dinámico")
+    m.add_argument("--tramos-por-toma", type=int, default=2)
+    m.add_argument("--max-silencio", type=float, default=0.08,
+                   help="una ventana con más de esta fracción de silencio corta la racha "
+                        "(dinámico). 0.08 = 2.4 s en 30 s")
+    m.add_argument("--duracion-max", type=float, default=None,
+                   help="minutos totales aproximados del compilado")
+    m.add_argument("--ajustar-tempo", action="store_true",
+                   help="time-stretch leve para que el tempo enganche con el tramo anterior")
+    m.add_argument("--max-stretch", type=float, default=0.04,
+                   help="ajuste máximo de tempo (0.04 = 4%%)")
     m.set_defaults(func=cmd_compilado)
 
     v = sub.add_parser("eval", help="medir el ranking contra refs.txt")
@@ -633,6 +789,22 @@ def main(argv=None):
     f.add_argument("--top", type=int, default=10)
     f.add_argument("--out", default=None)
     f.set_defaults(func=cmd_feedback)
+
+    s = sub.add_parser("sync", help="bajar de Drive los ensayos nuevos (por fecha) y procesarlos")
+    common(s)
+    s.add_argument("--meses", type=int, default=3, help="últimos N meses (default 3)")
+    s.add_argument("--desde", default=None, help="o desde AAAA-MM-DD")
+    s.add_argument("--origen", default="gdrive:Zapadas New/Nebulosa")
+    s.add_argument("--destino", default=None,
+                   help="carpeta local (default <root>/drive/AAAA-MM/)")
+    s.add_argument("--excluir", nargs="*", default=None,
+                   help="subcarpetas de Drive que no son ensayos crudos")
+    s.add_argument("--dry-run", action="store_true", help="mostrar qué bajaría, sin bajar")
+    s.add_argument("--extraer", action="store_true", help="procesar lo bajado al terminar")
+    s.add_argument("--jobs", type=int, default=max(os.cpu_count() // 2, 1))
+    s.add_argument("--instalar-launchd", type=int, metavar="HORA", default=None,
+                   help="instalar un LaunchAgent que corra sync --extraer todos los días a esa hora")
+    s.set_defaults(func=cmd_sync)
 
     for sp in (r, v, m, c, f):
         sp.add_argument("--sort-by", default="score_med",

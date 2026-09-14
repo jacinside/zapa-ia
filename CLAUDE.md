@@ -83,6 +83,16 @@ Usar siempre `.venv/bin/python`: el Python del sistema es 3.14 y no corre `tenso
 .venv/bin/python -m zapaia eval nebulosa    # ¿dónde caen las refs de refs.txt?
 .venv/bin/python -m zapaia dupes nebulosa   # duplicados
 
+# 0. SYNC desde Drive: baja solo los MP3 nuevos de los últimos N meses y los procesa
+.venv/bin/python -m zapaia sync nebulosa --meses 3 --dry-run     # qué bajaría
+.venv/bin/python -m zapaia sync nebulosa --meses 3 --extraer     # bajar + procesar lo nuevo
+.venv/bin/python -m zapaia sync nebulosa --instalar-launchd 4    # todos los días a las 4:00
+
+#    y después, solo lo reciente:
+.venv/bin/python -m zapaia compilado nebulosa --ultima-sesion --dinamico --ajustar-tempo
+.venv/bin/python -m zapaia compilado nebulosa --meses 3 --dinamico --ajustar-tempo
+#    -> compilado_sesion-2026-09-09_balance_dinamico.mp3 + .txt con la lista y los parámetros
+
 # 4. FEEDBACK HUMANO PAREADO — la fuente de etiquetas que funciona
 .venv/bin/python -m zapaia comparar nebulosa --modo veto --min-win 4 --n 20 --drive   # lote al celular
 .venv/bin/python -m zapaia comparar nebulosa --modo veto --min-win 4 --n 10           # escuchar acá (afplay)
@@ -320,6 +330,36 @@ Arma un solo MP3 con los mejores tramos de varias tomas. Decisiones de diseño:
 - `--sort-by` elige con qué criterio se seleccionan las tomas Y los tramos: `timing` para
   prolijidad de ejecución, `groove` para enganche, etc.
 
+### Modo dinámico (`--dinamico`): tramos de largo variable, enganchados
+
+Pedido del usuario después de escuchar los compilados fijos: "sin sonido entre temas, enganchados,
+secciones que no sean fijas, más completas, y del mismo tema sacar varias partes".
+
+- **`tramos_dinamicos`**: rachas contiguas de ventanas con `score >= cuantil --umbral-q` (default
+  0.60) **y** `silence_ratio <= --max-silencio` (0.08). Mínimo `--seg-win` ventanas, tope
+  `--max-seg-win` (10 = 5 min; una racha más larga se recorta a su mejor sub-tirada), hasta
+  `--tramos-por-toma` (2) por archivo. El filtro de silencio existe porque el score no ve una
+  pausa de 3 s en 30 s: sin él salían 6 huecos en un compilado, con él 1.
+- **Enganche**: inicio y fin pegados al beat (`snap_fin`), crossfade default 1 s (en fijo 3 s),
+  y `--ajustar-tempo`: time-stretch (`librosa.effects.time_stretch`, sin cambiar altura) del
+  tramo siguiente para igualar el anterior si la diferencia es `<= --max-stretch` (4%). Dobles y
+  mitades de tempo cuentan como iguales. El tempo se mide sobre el tramo real (`tempo_de`), no
+  con la mediana cuantizada del caché. El ajuste se **encadena**: una racha a 99.4 después de
+  una a 95.7 queda toda a 95.7.
+- **`_Decoder`** cachea el decode mono por archivo: con varios cortes por toma, `pegar_a_beat`
+  decodificaba 49 minutos cuatro veces.
+- `--duracion-max` corta la lista al llegar a los minutos pedidos; `--orden tempo` deja juntos
+  los tramos de una misma toma.
+- Bug encontrado y corregido: `ratio_tempo` arrancaba con `mejor = 1.0`, que tiene distancia
+  cero a 1.0 y nada lo superaba → **nunca ajustaba**. Se detectó porque 95.7 → 99.4 (3.9%) salía
+  sin ajuste. Lección: un valor centinela no puede ser el óptimo trivial.
+
+```bash
+.venv/bin/python -m zapaia compilado nebulosa --modo veto --min-win 4 --top 16 \
+    --dinamico --umbral-q 0.60 --seg-win 2 --max-seg-win 10 --tramos-por-toma 2 \
+    --ajustar-tempo --duracion-max 30 --out compilado_continuo.mp3
+```
+
 ## Preferencias del usuario (validadas por oído, no inferidas)
 
 **Prioriza variedad y creatividad por encima de prolijidad técnica.** Dijo textualmente:
@@ -345,6 +385,35 @@ creatividad) vs `muestra_B` (creatividad 0.40) comparten 6 de 10 tramos justamen
 configurado. **El MCP de Drive no sirve para esto**: sube pasando el contenido en base64 por la
 conversación y un clip de 20 s ya cuesta ~53 mil tokens. Ojo que rclone usa un client_id
 compartido que deja de funcionar durante 2026; habrá que crear uno propio.
+
+## Sync desde Drive (`zapaia sync`) y filtros de fecha
+
+Drive es **source**, no parte del algoritmo: el core sigue 100% local. `sync.py` usa `rclone
+lsjson` sobre `gdrive:Zapadas New/Nebulosa` (recursivo), filtra `*.mp3` por `ModTime` de Drive
+(`--meses N` o `--desde AAAA-MM-DD`) y **excluye** subcarpetas que no son ensayos crudos:
+`Seleccion IA - compilados` (nuestras propias salidas: 46 de los 73 archivos "recientes" eran
+eso), `Canciones`, `REAPER`, `NINJAMsessions`. Lo bajado va a `nebulosa/drive/AAAA-MM/`.
+
+- **Manifest** `drive_files(drive_id, size, modtime, local_path)`: identidad por id de Drive, no
+  por ruta. No vuelve a bajar lo que ya está; si un archivo de Drive ya existe local con el mismo
+  nombre y tamaño (el corpus viejo se bajó a mano), lo registra sin bajar.
+- rclone preserva el `ModTime` de Drive como mtime local, así `is_fresh` no se confunde.
+- **Fecha de un archivo** (`fechas_locales`): la del manifest si existe, si no el mtime local. Para
+  el corpus viejo el mtime es de copias y poco confiable; para lo sincronizado es la fecha de
+  subida a Drive, que es lo más cercano a "fecha de ensayo" que hay.
+- **`--ultima-sesion`** = todos los archivos del **día calendario local** más reciente con
+  subidas (una subida a las 23:30 no cae en el día siguiente por estar en UTC). `--meses` /
+  `--desde` filtran por rango. Aplican a `rank` y `compilado`; la normalización por percentil
+  sigue siendo sobre TODO el corpus, el filtro solo decide qué tomas son elegibles: la sesión
+  nueva se puntúa contra toda la historia.
+- El compilado con filtro se nombra solo: `compilado_<filtro>_<perfil>_<fijo|dinamico>.mp3`
+  (ej. `compilado_sesion-2026-09-09_balance_dinamico.mp3`), escribe un `.txt` con parámetros y
+  lista, y mete lo mismo en los tags ID3 (title/comment) para verlo en el reproductor.
+- `--instalar-launchd HORA` escribe `~/Library/LaunchAgents/com.zapaia.sync.plist` que corre
+  `sync --meses N --extraer` a diario (log en `sync.log`). Requiere que la máquina esté prendida.
+
+En Drive/Nebulosa hay 957 MP3 en la raíz contra 849 locales: hay ~100 viejos que nunca se
+bajaron. `sync --meses 120` los traería.
 
 ## Feedback pareado (`zapaia comparar` / `zapaia feedback`)
 

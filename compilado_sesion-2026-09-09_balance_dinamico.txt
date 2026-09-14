@@ -1,0 +1,6 @@
+COMPILADO sesion-2026-09-09_balance_dinamico
+filtro=sesion-2026-09-09 perfil=balance modo=veto sort=score_med dinamico q0.5 crossfade=1.0s tempo<=0.04 pesos=timing:0.35,groove:0.3,tonal_outlier:0.1,afinacion:0.15,desarrollo:0.2,creatividad:0.2
+
+  0:00  charly gozar- nebu 26.mp3                      0:29-4:01  ( 211s, 107.7bpm, 0.64)
+
+Duración total: 3.5 min
