@@ -3,73 +3,73 @@ filtro=3meses-2026-06-16_a_2026-09-09 perfil=balance modo=veto sort=score_med di
 
 Scores en percentil del corpus completo (0-1). ejec=ejecución, int=interés, tim=timing, gro=groove, afi=afinación, ton=tonal_outlier, cre=creatividad, des=desarrollo, son=sonido. 'tramo' = ese tramo; 'toma' = el archivo entero.
 
-  0:00  pobre reencuentro- nebu 26.mp3
+  0:00  pobre reencuentro- nebu 26 (1).mp3
         15:59-17:00  61s  198.8bpm
-        tramo: score 0.63 | tim 0.41 gro 0.69 afi 0.82 ton 0.98 son 0.56
-        toma:  ejec 0.58 | int 0.52 cre 0.68 des 0.35
-  1:00  pobre reencuentro- nebu 26.mp3
+        tramo: score 0.61 | tim 0.36 gro 0.69 afi 0.82 ton 0.98 son 0.56
+        toma:  ejec 0.57 | int 0.52 cre 0.68 des 0.35
+  1:00  pobre reencuentro- nebu 26 (1).mp3
         1:29-6:31  301s  112.3bpm
-        tramo: score 0.66 | tim 0.66 gro 0.67 afi 0.75 ton 0.78 son 0.64
-        toma:  ejec 0.58 | int 0.52 cre 0.68 des 0.35
+        tramo: score 0.66 | tim 0.59 gro 0.67 afi 0.75 ton 0.78 son 0.64
+        toma:  ejec 0.57 | int 0.52 cre 0.68 des 0.35
   6:00  chica lunar planti 26.mp3
-        0:00-1:31  90s  112.3bpm
-        tramo: score 0.67 | tim 0.68 gro 0.61 afi 0.72 ton 0.74 son 0.52
-        toma:  ejec 0.67 | int 0.39 cre 0.25 des 0.52
-  7:29  kiki pre - tacho plant 26.mp3
+        0:00-2:01  120s  112.3bpm
+        tramo: score 0.69 | tim 0.72 gro 0.61 afi 0.72 ton 0.74 son 0.52
+        toma:  ejec 0.69 | int 0.39 cre 0.25 des 0.52
+  7:59  kiki pre - tacho plant 26.mp3
         0:00-2:31  151s  112.3bpm
-        tramo: score 0.59 | tim 0.73 gro 0.57 afi 0.60 ton 0.37 son 0.57
-        toma:  ejec 0.61 | int 0.53 cre 0.37 des 0.68
-  9:59  ponja mixer nebu pobre cigar.mp3
+        tramo: score 0.58 | tim 0.65 gro 0.57 afi 0.60 ton 0.37 son 0.57
+        toma:  ejec 0.58 | int 0.53 cre 0.37 des 0.68
+ 10:29  ponja mixer nebu pobre cigar.mp3
         7:59-9:01  61s  112.3bpm
-        tramo: score 0.72 | tim 0.64 gro 0.80 afi 0.79 ton 0.69 son 0.64
+        tramo: score 0.75 | tim 0.73 gro 0.80 afi 0.79 ton 0.69 son 0.64
         toma:  ejec 0.63 | int 0.52 cre 0.41 des 0.63
- 10:59  ponja mixer nebu pobre cigar.mp3
+ 11:29  ponja mixer nebu pobre cigar.mp3
         0:00-3:00  181s  117.5bpm
-        tramo: score 0.69 | tim 0.62 gro 0.60 afi 0.80 ton 0.73 son 0.47
+        tramo: score 0.68 | tim 0.61 gro 0.60 afi 0.80 ton 0.73 son 0.47
         toma:  ejec 0.63 | int 0.52 cre 0.41 des 0.63
- 13:59  ponja mixer nebu otro sistem 3ra session.mp3
-        0:00-1:01  61s  117.5bpm
-        tramo: score 0.54 | tim 0.46 gro 0.52 afi 0.58 ton 0.29 son 0.50
-        toma:  ejec 0.55 | int 0.45 cre 0.43 des 0.46
- 14:59  ponja mixer nebu otro sistem 3ra session.mp3
-        1:29-2:31  61s  117.5bpm
-        tramo: score 0.57 | tim 0.58 gro 0.42 afi 0.61 ton 0.37 son 0.45
-        toma:  ejec 0.55 | int 0.45 cre 0.43 des 0.46
- 16:00  batibajo - father 26.mp3
+ 14:29  batibajo - father 26.mp3
         2:00-3:29  90s  117.5bpm
-        tramo: score 0.65 | tim 0.63 gro 0.90 afi 0.63 ton 0.33 son 0.65
-        toma:  ejec 0.53 | int 0.37 cre 0.38 des 0.37
- 17:28  ponja mixer nebu altos de chip[ion.mp3
+        tramo: score 0.67 | tim 0.62 gro 0.90 afi 0.63 ton 0.33 son 0.65
+        toma:  ejec 0.48 | int 0.37 cre 0.38 des 0.37
+ 15:58  ponja mixer nebu altos de chip[ion.mp3
         2:59-5:30  151s  117.5bpm
-        tramo: score 0.60 | tim 0.66 gro 0.51 afi 0.68 ton 0.56 son 0.41
-        toma:  ejec 0.63 | int 0.60 cre 0.70 des 0.51
- 19:58  degree ferrocarril - tacho plant 26.mp3
+        tramo: score 0.63 | tim 0.62 gro 0.51 afi 0.68 ton 0.56 son 0.41
+        toma:  ejec 0.61 | int 0.60 cre 0.70 des 0.51
+ 18:28  reencuentro - nebu 26.mp3
+        3:29-4:30  61s  117.5bpm
+        tramo: score 0.57 | tim 0.48 gro 0.77 afi 0.48 ton 0.45 son 0.63
+        toma:  ejec 0.51 | int 0.45 cre 0.52 des 0.37
+ 19:28  reencuentro - nebu 26.mp3
+        6:29-8:01  91s  123.0bpm
+        tramo: score 0.62 | tim 0.45 gro 0.70 afi 0.70 ton 0.55 son 0.63
+        toma:  ejec 0.51 | int 0.45 cre 0.52 des 0.37
+ 20:58  sueles dejarme - tacho plant 26.mp3
+        0:00-1:00  61s  123.0bpm
+        tramo: score 0.63 | tim 0.41 gro 0.80 afi 0.83 ton 0.60 son 0.62
+        toma:  ejec 0.54 | int 0.55 cre 0.61 des 0.48
+ 21:58  sueles dejarme - tacho plant 26.mp3
+        14:29-16:00  91s  117.5bpm
+        tramo: score 0.71 | tim 0.73 gro 0.57 afi 0.59 ton 0.54 son 0.40
+        toma:  ejec 0.54 | int 0.55 cre 0.61 des 0.48
+ 23:28  degree ferrocarril - tacho plant 26.mp3
         4:29-6:00  91s  117.5bpm
-        tramo: score 0.67 | tim 0.60 gro 0.75 afi 0.66 ton 0.40 son 0.39
-        toma:  ejec 0.60 | int 0.55 cre 0.62 des 0.48
- 21:28  degree ferrocarril - tacho plant 26.mp3
+        tramo: score 0.65 | tim 0.56 gro 0.75 afi 0.66 ton 0.40 son 0.39
+        toma:  ejec 0.59 | int 0.55 cre 0.62 des 0.48
+ 24:58  degree ferrocarril - tacho plant 26.mp3
         11:59-14:00  121s  117.5bpm
-        tramo: score 0.66 | tim 0.76 gro 0.56 afi 0.75 ton 0.48 son 0.40
-        toma:  ejec 0.60 | int 0.55 cre 0.62 des 0.48
- 23:28  sueles dejarme - tacho plant 26.mp3
-        4:30-6:01  91s  117.5bpm
-        tramo: score 0.65 | tim 0.71 gro 0.68 afi 0.80 ton 0.43 son 0.39
-        toma:  ejec 0.58 | int 0.55 cre 0.61 des 0.48
- 24:58  sueles dejarme - tacho plant 26.mp3
-        14:29-15:30  61s  117.5bpm
-        tramo: score 0.75 | tim 0.87 gro 0.68 afi 0.70 ton 0.58 son 0.42
-        toma:  ejec 0.58 | int 0.55 cre 0.61 des 0.48
- 25:58  reencuentro pre kiki- nebu 26.mp3
-        0:00-1:00  60s  123.0bpm
-        tramo: score 0.55 | tim 0.72 gro 0.56 afi 0.39 ton 0.15 son 0.51
-        toma:  ejec 0.45 | int 0.45 cre 0.51 des 0.39
+        tramo: score 0.65 | tim 0.73 gro 0.56 afi 0.75 ton 0.48 son 0.40
+        toma:  ejec 0.59 | int 0.55 cre 0.62 des 0.48
  26:57  paichi planti 26.mp3
         2:30-3:31  61s  123.0bpm
-        tramo: score 0.60 | tim 0.70 gro 0.64 afi 0.52 ton 0.28 son 0.41
-        toma:  ejec 0.59 | int 0.57 cre 0.72 des 0.43
+        tramo: score 0.56 | tim 0.60 gro 0.64 afi 0.52 ton 0.28 son 0.41
+        toma:  ejec 0.56 | int 0.57 cre 0.72 des 0.43
  27:57  paichi planti 26.mp3
-        0:00-2:01  121s  123.0bpm
-        tramo: score 0.54 | tim 0.71 gro 0.61 afi 0.48 ton 0.53 son 0.57
-        toma:  ejec 0.59 | int 0.57 cre 0.72 des 0.43
+        0:00-1:31  91s  123.0bpm
+        tramo: score 0.57 | tim 0.68 gro 0.62 afi 0.51 ton 0.62 son 0.58
+        toma:  ejec 0.56 | int 0.57 cre 0.72 des 0.43
+ 29:27  reencuentro comienzo - nebu 26 (1).mp3
+        0:00-2:30  150s  107.7bpm
+        tramo: score 0.66 | tim 0.47 gro 0.76 afi 0.78 ton 0.54 son 0.59
+        toma:  ejec 0.63 | int 0.35 cre 0.36 des 0.34
 
-Duración total: 30.0 min
+Duración total: 32.0 min
