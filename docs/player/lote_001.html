@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nebulosa · ¿cuál rescatarías? · lote 1</title>
+<style>
+:root{--bg:#F3F4F1;--ink:#1C1F1D;--ink2:#4E5652;--line:#CFD4CE;--acc:#2B5D6B;--ok:#2F7D4F;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#15181A;--ink:#E6E9E7;--ink2:#A7B0AB;--line:#333A3E;--acc:#7FB6C2;--ok:#7CCB98;--card:#1E2326}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,system-ui,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:16px 14px 120px}
+h1{font-size:20px;margin:6px 0 2px}.sub{color:var(--ink2);font-size:14px;margin:0 0 14px}
+.par{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:0 0 12px}
+.num{font-weight:700;color:var(--acc);font-size:13px;letter-spacing:.06em}
+.lado{margin:8px 0}.lado b{display:inline-block;width:18px}.lado span{color:var(--ink2);font-size:14px}
+audio{width:100%;height:36px;margin-top:4px}
+.btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+button{font:inherit;font-size:14px;padding:10px 4px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink)}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:8px;align-items:center}
+.bar .p{flex:1;font-size:14px;color:var(--ink2)}
+.bar button{background:var(--ok);color:#fff;border-color:var(--ok);padding:10px 14px;font-weight:600}
+.bar button:disabled{opacity:.5}
+.nombre{width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);margin:0 0 12px}
+.hint{font-size:13px;color:var(--ink2)}
+</style></head><body><div class="wrap">
+<h1>Nebulosa · ¿cuál rescatarías?</h1>
+<p class="sub">Lote 1 · escuchá A y B de cada par y tocá cuál rescatarías. Al final, "Enviar" arma el mensaje.</p>
+<input class="nombre" id="nombre" placeholder="Tu nombre (opcional)">
+<div id="lista"></div>
+<p class="hint">Los votos quedan guardados en este teléfono aunque cierres la página. Podés cambiar cualquiera antes de enviar.</p>
+</div>
+<div class="bar"><div class="p" id="prog"></div><button id="enviar" disabled>Enviar por WhatsApp</button><button id="copiar" style="background:var(--acc);border-color:var(--acc)">Copiar</button></div>
+<script>
+const LOTE=1;const PARES=[{"n": 1, "a": "pobre evolution 2", "b": "fluyendo cuarenteneado", "ua": "https://drive.google.com/uc?export=download&id=1W0-_YfT6A27Ukk4GHzPqcealzkno7iRw", "ub": "https://drive.google.com/uc?export=download&id=1YeYJo6giC5lI0ryCXaIxxVwUIrGwGZ6i"}, {"n": 2, "a": "fluyendo demo segundo vol", "b": "angelical", "ua": "https://drive.google.com/uc?export=download&id=1mnORFa00A1BD38RnpV0MS8c0OqHErIaI", "ub": "https://drive.google.com/uc?export=download&id=1JTxar6jffRvPcEROfA2CUaf5HJNaA0Fn"}, {"n": 3, "a": "zapadito espacial", "b": "fluyendo porn ensayo previo", "ua": "https://drive.google.com/uc?export=download&id=13vtOa7mpJJS3Rrnh-qYQNdgNUFMGgnAm", "ub": "https://drive.google.com/uc?export=download&id=1Yxq-D2Ykz3n3HJyVkaxzIt_Sl7Lb-GrQ"}, {"n": 4, "a": "amor - nebu 25", "b": "experimental - nebu doc monk zapada completa v2 video", "ua": "https://drive.google.com/uc?export=download&id=1wF1hDd9KjKd_2abRxXj4gN84BcF0kBmD", "ub": "https://drive.google.com/uc?export=download&id=1Wdt7lViA2aiYiqKiCX9xJ9NXEK9AsxCO"}, {"n": 5, "a": "suenio por vos", "b": "JAZZ NEB - nebu 25", "ua": "https://drive.google.com/uc?export=download&id=1a6RqC-0P-Lk-UTtodbLMGmskHUuvkJIm", "ub": "https://drive.google.com/uc?export=download&id=1G6YGM2zZYmtvU5D3qu-JNFmBJCyLOUnr"}, {"n": 6, "a": "funkytown", "b": "el telo del dia", "ua": "https://drive.google.com/uc?export=download&id=13DjFP3tMsEkYtNtilw3Du8E-Sa-BFZD2", "ub": "https://drive.google.com/uc?export=download&id=1Qo4io6fCKdTBkWAoCzN93X1C7Z88yhGK"}, {"n": 7, "a": "caminando", "b": "heavytest zapadito", "ua": "https://drive.google.com/uc?export=download&id=1zSyKmd6Ncp86qqWH72z2d2NQn7hM3PT6", "ub": "https://drive.google.com/uc?export=download&id=1J6ArdAbo3Eqa8oZKHnbnIFcSC-lNJ3vN"}, {"n": 8, "a": "Bossa (1)", "b": "pobre reflexibo", "ua": "https://drive.google.com/uc?export=download&id=19UVxvMjOUo2jc5PhZkBHaygfzA_-NtaI", "ub": "https://drive.google.com/uc?export=download&id=1lA48XVb7SBUYJ1XwxUdR7X5ZLOvPFh02"}, {"n": 9, "a": "fluyendo po  2024", "b": "embape nebu oxilado", "ua": "https://drive.google.com/uc?export=download&id=15VQlG-zTOxQdBmQW1h3rTN5e4l3d3Ahd", "ub": "https://drive.google.com/uc?export=download&id=1hu0KyHo8yQAYwoUV5qE7M2G0jzd7yUqf"}, {"n": 10, "a": "a volar ninjam", "b": "nebu origin zapa dando menos", "ua": "https://drive.google.com/uc?export=download&id=17Pvypm-ZAViIbxrJr1JhKeoSNIEwSbkt", "ub": "https://drive.google.com/uc?export=download&id=1qKxIH-_qtNBudMsXd3NV3RFW5rxScifY"}, {"n": 11, "a": "entrepeneour", "b": "oneA99 nebuloso", "ua": "https://drive.google.com/uc?export=download&id=1h-JvIYLFf8l63NV45dqvdBqTaTTmxTde", "ub": "https://drive.google.com/uc?export=download&id=1NoUIS4Qdi6KZwrxLmvkRAhCScToi0CMO"}, {"n": 12, "a": "porcupine grass demo", "b": "fluyendo demo segundo vol 3", "ua": "https://drive.google.com/uc?export=download&id=1tPDCNSje3XBruhO0ghNcKvgWc78hKDQy", "ub": "https://drive.google.com/uc?export=download&id=1SBA2kbFxl25yjk6-utNqcKHVf9OZuJ0h"}, {"n": 13, "a": "plantita zapadita", "b": "tu ciudad vol 33", "ua": "https://drive.google.com/uc?export=download&id=1sirGRJ5kMSAFLF7KJO8Qud-tzPNjmI_g", "ub": "https://drive.google.com/uc?export=download&id=1JA07RN3bJyz1EVEUmN9AfeonEZpYd8dU"}, {"n": 14, "a": "mami mami sii bosa", "b": "estado de nebulosa 2025 - nebulosa", "ua": "https://drive.google.com/uc?export=download&id=1l5fp5QkDfBRw4KBydLex7lkGR1evq-Iy", "ub": "https://drive.google.com/uc?export=download&id=1MszsSDk0h8qz-oQJFEc4lrrI_03Bh22m"}, {"n": 15, "a": "breathe extendida ", "b": "rocky 5", "ua": "https://drive.google.com/uc?export=download&id=10CX34FX93dkykQNWMj8ObfVuUmHEKg4d", "ub": "https://drive.google.com/uc?export=download&id=1ERE1IjwCn_4K9c4pebvkVS06GPFcEyJE"}, {"n": 16, "a": "quepollo y medio 2025 - nebulosa", "b": "cloud shet joguimono", "ua": "https://drive.google.com/uc?export=download&id=1-X6X5gTrlf5dJ9xuKgU4mSUbuLZUvNhE", "ub": "https://drive.google.com/uc?export=download&id=101_OVPZysH1SPGEclOR7ypIzfhqPviTi"}, {"n": 17, "a": "chupichupi", "b": "farcry quecosa", "ua": "https://drive.google.com/uc?export=download&id=1O0UvdN0r5Gk8O966cqc18Xy12DpsAkqs", "ub": "https://drive.google.com/uc?export=download&id=1FMosvJQON3zUmoFEcC4jf40M8y-ePzpc"}, {"n": 18, "a": "angelical solo teclados", "b": "zapada gotomaaster", "ua": "https://drive.google.com/uc?export=download&id=1TIBZs0PM7CmRz4ZgyUdc7Vkv9qgb9uzB", "ub": "https://drive.google.com/uc?export=download&id=1JKiUmeF_LiRDatHeQdGglK1bBZhHAoOQ"}, {"n": 19, "a": "990", "b": "blues doc mono algo murio", "ua": "https://drive.google.com/uc?export=download&id=1CKf7HWFqECy-jJ1vZeiPzSDPZIWHR2l7", "ub": "https://drive.google.com/uc?export=download&id=1pcclRiW-Db0nYmm7RTWHbRZMVkzsbnJk"}, {"n": 20, "a": "semen up -  con doc 25", "b": "perro chico tiene hambre instrumental", "ua": "https://drive.google.com/uc?export=download&id=1nlT_86qvxq2l7829ADX8SZVh1ug1g5wp", "ub": "https://drive.google.com/uc?export=download&id=1eSr2sOydZpcCo1qU-2jFrmusfZosZWM-"}];
+const KEY="zapaia_lote_"+LOTE;let votos={};try{votos=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){}
+const OPC=[["A","A"],["B","B"],["ambos","ambos"],["ninguno","ninguno"]];
+const lista=document.getElementById("lista");
+for(const p of PARES){
+  const d=document.createElement("div");d.className="par";d.id="par"+p.n;
+  d.innerHTML=`<div class="num">PAR ${String(p.n).padStart(3,"0")}</div>
+  <div class="lado"><b>A</b> <span>${esc(p.a)}</span><audio controls preload="none" src="${p.ua}"></audio></div>
+  <div class="lado"><b>B</b> <span>${esc(p.b)}</span><audio controls preload="none" src="${p.ub}"></audio></div>
+  <div class="btns">${OPC.map(([v,l])=>`<button data-n="${p.n}" data-v="${v}">${l}</button>`).join("")}</div>`;
+  lista.appendChild(d);
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c])}
+document.querySelectorAll("audio").forEach(a=>a.addEventListener("play",()=>{document.querySelectorAll("audio").forEach(o=>{if(o!==a)o.pause()})}));
+lista.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  votos[b.dataset.n]=b.dataset.v;try{localStorage.setItem(KEY,JSON.stringify(votos))}catch(x){}render();});
+function texto(){const nom=document.getElementById("nombre").value.trim();
+  const partes=PARES.filter(p=>votos[p.n]).map(p=>`${p.n} ${votos[p.n]}`);
+  return `LOTE ${LOTE}${nom?" ("+nom+")":""}: `+partes.join(", ");}
+function render(){
+  document.querySelectorAll("#lista button").forEach(b=>b.classList.toggle("on",votos[b.dataset.n]===b.dataset.v));
+  const n=PARES.filter(p=>votos[p.n]).length;
+  document.getElementById("prog").textContent=`${n} de ${PARES.length} respondidos`;
+  document.getElementById("enviar").disabled=n===0;
+}
+document.getElementById("enviar").onclick=()=>{location.href="https://wa.me/?text="+encodeURIComponent(texto())};
+document.getElementById("copiar").onclick=async()=>{try{await navigator.clipboard.writeText(texto());document.getElementById("prog").textContent="Copiado ✓"}catch(e){prompt("Copiá este texto:",texto())}};
+render();
+</script></body></html>
