@@ -326,19 +326,15 @@ def cmd_compilado(a):
         def _dist(ta, tb):
             if ta != ta or tb != tb:
                 return 1.0
-            return min(abs(math.log(ta / (tb * m))) for m in (0.5, 1.0, 2.0))
+            # Un doble/mitad engancha, pero se siente distinto: se penaliza para que
+            # gane un vecino de la misma octava cuando lo hay. Sin esto, 161.5 se
+            # consideraba vecino de 89 (≈ 2×80) y el compilado saltaba de uno a otro.
+            return min(abs(math.log(ta / (tb * m))) + (0.0 if m == 1.0 else 0.15)
+                       for m in (0.5, 1.0, 2.0))
 
         pend = list(tramos)
-        # Arranca por el más lento (plegado) para que el compilado vaya subiendo.
-        def _fold(t):
-            if t != t:
-                return 1e9
-            while t >= 160:
-                t /= 2.0
-            while t < 80:
-                t *= 2.0
-            return t
-        pend.sort(key=lambda t: _fold(t[4]))
+        # Arranca por el tempo REAL más lento, para que el compilado vaya subiendo.
+        pend.sort(key=lambda t: t[4] if t[4] == t[4] else 1e9)
         orden, act = [pend.pop(0)], None
         while pend:
             act = orden[-1]
