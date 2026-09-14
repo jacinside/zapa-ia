@@ -99,7 +99,9 @@ def _tokens(nombre):
     import re
     n = re.sub(r"\.mp3$", "", nombre.lower())
     n = re.sub(r"[^a-z0-9áéíóúñ ]", " ", n)
-    return [t for t in n.split() if len(t) > 2]
+    # Los números puros ("26", "2025", "990") son años o versiones, no temas:
+    # con "26" como tema, todo el ensayo "nebu 26" contaba como una sola canción.
+    return [t for t in n.split() if len(t) > 2 and not t.isdigit()]
 
 
 def temas_por_nombre(nombres, min_df=3, max_frac=0.12):
