@@ -16,7 +16,10 @@ import re
 
 
 def drive_url(file_id):
-    return f"https://drive.google.com/uc?export=download&id={file_id}"
+    # NO usar drive.google.com/uc?export=download: redirige con tipo
+    # application/binary + nosniff y Chrome lo bloquea por CORB en <audio>.
+    # Este endpoint entrega el MP3 directo, con CORS abierto y rangos (seek).
+    return f"https://drive.usercontent.google.com/download?id={file_id}&export=download"
 
 
 def leer_lote_txt(path):
