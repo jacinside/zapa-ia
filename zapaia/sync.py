@@ -52,7 +52,7 @@ def locales_por_nombre(root):
     for r, _, fs in os.walk(root):
         for f in fs:
             if f.lower().endswith(".mp3"):
-                p = os.path.join(r, f)
+                p = os.path.abspath(os.path.join(r, f))
                 out[(f, os.path.getsize(p))] = p
     return out
 
@@ -77,7 +77,9 @@ def bajar(it, origen, destino_root):
     mes = it["fecha"].strftime("%Y-%m")
     dest_dir = os.path.join(destino_root, mes)
     os.makedirs(dest_dir, exist_ok=True)
-    local = os.path.join(dest_dir, it["Name"])
+    # Ruta ABSOLUTA: el caché de features indexa por ruta absoluta y el manifest
+    # tiene que coincidir para que fechas_locales() encuentre la fecha de Drive.
+    local = os.path.abspath(os.path.join(dest_dir, it["Name"]))
     _rclone(["copyto", f"{origen}/{it['Path']}", local], timeout=1800)
     return local
 
@@ -161,8 +163,19 @@ def filtrar_por_fecha(d, fechas, desde=None, ultima_sesion=False):
     if desde is not None:
         d = d[d["_fecha"] >= desde]
     if ultima_sesion and len(d):
-        dias = d["_fecha"].map(dia_local)
-        d = d[dias == dias.max()]
+        # "Última zapada" = el archivo más reciente y todos los que se subieron
+        # en cadena con él: cada uno a menos de `gap_h` horas del anterior.
+        # Agrupar por día calendario partía sesiones: una subida a las 02:00 UTC
+        # es la noche anterior en hora local y quedaba en otro "día".
+        gap_h = 12
+        fechas_ord = sorted(d["_fecha"].map(lambda f: f.to_pydatetime() if hasattr(f, "to_pydatetime") else f),
+                            reverse=True)
+        corte = fechas_ord[0]
+        for f in fechas_ord[1:]:
+            if (corte - f).total_seconds() > gap_h * 3600:
+                break
+            corte = f
+        d = d[d["_fecha"] >= corte]
     return d
 
 
