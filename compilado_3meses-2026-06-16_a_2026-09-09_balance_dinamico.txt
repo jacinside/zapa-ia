@@ -1,0 +1,15 @@
+COMPILADO 3meses-2026-06-16_a_2026-09-09_balance_dinamico
+filtro=3meses-2026-06-16_a_2026-09-09 perfil=balance modo=veto sort=score_med dinamico q0.55 crossfade=1.0s tempo<=0.04 pesos=timing:0.35,groove:0.3,tonal_outlier:0.1,afinacion:0.15,desarrollo:0.2,creatividad:0.2
+
+  0:00  charly gozar- nebu 26.mp3                      0:29-4:01  ( 211s, 107.7bpm, 0.64)
+  3:30  reencuentro comienzo - nebu 26.mp3             0:00-2:30  ( 150s, 107.7bpm, 0.66)
+  5:59  ponja mixer nebu pobre cigar.mp3               7:59-9:01  (  61s, 112.3bpm, 0.74)
+  7:00  kiki pre - tacho plant 26.mp3                  0:00-2:31  ( 151s, 112.3bpm, 0.61)
+  9:29  chica lunar planti 26.mp3                      0:00-1:31  (  90s, 112.3bpm, 0.68)
+ 10:59  batibajo - father 26.mp3                       2:00-3:29  (  90s, 117.5bpm, 0.64)
+ 12:27  ponja mixer nebu altos de chip[ion.mp3         2:59-5:30  ( 151s, 117.5bpm, 0.61)
+ 14:57  ponja mixer nebu pobre cigar.mp3               0:00-3:00  ( 181s, 117.5bpm, 0.67)
+ 17:57  degree ferrocarril - tacho plant 26.mp3        4:29-6:00  (  91s, 117.5bpm, 0.64)
+ 19:27  degree ferrocarril - tacho plant 26.mp3        11:59-14:00  ( 121s, 117.5bpm, 0.64)
+
+Duración total: 21.5 min
