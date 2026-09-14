@@ -1,0 +1,20 @@
+COMPILADO todo_balance_dinamico
+filtro=todo perfil=balance modo=veto sort=score_med dinamico q0.6 crossfade=1.0s tempo<=0.04 pesos=timing:0.35,groove:0.3,tonal_outlier:0.1,afinacion:0.15,desarrollo:0.2,creatividad:0.2
+
+  0:00  liquid pagan.mp3                               1:30-6:30  ( 301s, 161.5bpm, 0.70)
+  4:59  liquid pagan.mp3                               11:29-14:00  ( 151s, 161.5bpm, 0.64)
+  7:29  ford focus mono.mp3                            9:30-11:01  (  91s, 161.5bpm, 0.67)
+  8:59  ford focus mono.mp3                            11:30-12:31  (  61s, 161.5bpm, 0.67)
+  9:59  sisterborrachosa.mp3                           1:00-2:31  (  91s,  89.1bpm, 0.70)
+ 11:29  bativiola gera joguito nebuzap 1.mp3           0:29-2:00  (  91s,  95.7bpm, 0.77)
+ 12:59  bativiola gera joguito nebuzap 1.mp3           2:59-5:05  ( 126s,  99.4bpm x0.963, 0.77)
+ 15:04  electro monkey town end 99.mp3                 3:29-4:33  (  63s,  99.4bpm x0.963, 0.69)
+ 16:06  electro monkey town end 99.mp3                 4:59-6:03  (  63s,  99.4bpm x0.963, 0.78)
+ 17:08  rolendeando.mp3                                4:59-10:12  ( 313s,  99.4bpm x0.963, 0.73)
+ 22:20  rolendeando.mp3                                10:29-11:33  (  63s,  99.4bpm x0.963, 0.63)
+ 23:23  telonero.mp3                                   2:59-6:30  ( 211s, 107.7bpm, 0.72)
+ 26:53  telonero.mp3                                   6:59-8:00  (  61s, 107.7bpm, 0.77)
+ 27:53  wizraard- nebu 25.mp3                          0:00-1:01  (  60s, 117.5bpm, 0.68)
+ 28:52  wizraard- nebu 25.mp3                          1:29-4:01  ( 151s, 123.0bpm, 0.73)
+
+Duración total: 31.4 min
