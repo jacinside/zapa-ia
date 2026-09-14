@@ -214,6 +214,8 @@ def parsear_respuestas(texto):
 
     Tolerante: acepta lo que se escribe por WhatsApp.
     """
+    # El player manda "LOTE 1 (nombre): 1 A, 2 B, ..." — el prefijo se descarta.
+    texto = re.sub(r"^\s*lote\s*\d+\s*(\([^)]*\))?\s*:\s*", "", texto, flags=re.IGNORECASE)
     out = []
     for trozo in re.split(r"[,;\n]+", texto):
         trozo = trozo.strip()
