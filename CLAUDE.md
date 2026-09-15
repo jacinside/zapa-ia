@@ -380,9 +380,13 @@ muestras idénticas salvo una variable— y que solo diga cuál prefiere. `muest
 creatividad) vs `muestra_B` (creatividad 0.40) comparten 6 de 10 tramos justamente para eso.
 
 **Entrega:** los MP3 van a Google Drive para escucharlos desde el celular, en
-`Zapadas New/Nebulosa/Seleccion IA - compilados`. Se sube con `rclone copy <archivo>
-"gdrive:Zapadas New/Nebulosa/Seleccion IA - compilados/"`. El remote `gdrive` ya está
-configurado. **El MCP de Drive no sirve para esto**: sube pasando el contenido en base64 por la
+`Zapadas New/Nebulosa/Seleccion IA - compilados` (ID `1A2p8uBwgPNnmGXRsfGipL8cX-RnhZnuR`).
+**Subir siempre por ID, nunca por nombre**:
+`rclone copy <archivo> "gdrive,root_folder_id=1A2p8uBwgPNnmGXRsfGipL8cX-RnhZnuR:"`.
+Drive admite carpetas con el mismo nombre: el 14/9 rclone creó una "Seleccion IA - compilados"
+duplicada y durante un día los compilados nuevos fueron a una carpeta que el usuario no veía
+("no los veo"). Se consolidó todo en la original y la duplicada se borró. El remote `gdrive`
+ya está configurado. **El MCP de Drive no sirve para esto**: sube pasando el contenido en base64 por la
 conversación y un clip de 20 s ya cuesta ~53 mil tokens. Ojo que rclone usa un client_id
 compartido que deja de funcionar durante 2026; habrá que crear uno propio.
 

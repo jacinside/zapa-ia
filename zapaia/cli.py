@@ -427,7 +427,11 @@ def cmd_compilado(a):
         print(f"\nLista -> {Path(a.out).with_suffix('.txt')}  (sin audio: --solo-lista)")
 
 
-DRIVE_FEEDBACK = "gdrive:Zapadas New/Nebulosa/Seleccion IA - compilados/feedback"
+# La carpeta de salida en Drive se direcciona por ID, no por nombre: Drive admite
+# dos carpetas con el mismo nombre y rclone creó una duplicada el 14/9, con lo
+# cual los compilados nuevos iban a una carpeta que el usuario no veía.
+DRIVE_SALIDA = "gdrive,root_folder_id=1A2p8uBwgPNnmGXRsfGipL8cX-RnhZnuR:"
+DRIVE_FEEDBACK = DRIVE_SALIDA + "feedback"
 
 
 def _filtrar_fechas(a, con, d):
@@ -718,7 +722,7 @@ def cmd_player(a):
     pares = player.leer_lote_txt(str(lote_dir / "lote.txt"))
     ids_path = lote_dir / "drive_ids.json"
     if not ids_path.exists():
-        dest = f"{DRIVE_FEEDBACK.rsplit('/', 1)[0]}/player/lote_{a.lote:03d}"
+        dest = f"{DRIVE_SALIDA}player/lote_{a.lote:03d}"
         print(f"Subiendo clips a {dest} ...")
         subprocess.run(["rclone", "copy", str(lote_dir), dest, "--include", "par_*.mp3"],
                        capture_output=True)

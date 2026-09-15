@@ -1,0 +1,75 @@
+COMPILADO todo_gems_dinamico
+filtro=todo perfil=gems modo=veto sort=score_med dinamico q0.6 crossfade=1.0s tempo<=0.04 pesos=timing:0.35,groove:0.3,tonal_outlier:0.1,afinacion:0.15,desarrollo:0.2,creatividad:0.2
+
+Scores en percentil del corpus completo (0-1). ejec=ejecución, int=interés, tim=timing, gro=groove, afi=afinación, ton=tonal_outlier, cre=creatividad, des=desarrollo, son=sonido. 'tramo' = ese tramo; 'toma' = el archivo entero.
+
+  0:00  mutant zap.mp3
+        27:59-29:31  91s  99.4bpm
+        tramo: score 0.61 | tim 0.51 gro 0.66 afi 0.69 ton 0.49 son 0.66
+        toma:  ejec 0.51 | int 0.57 cre 0.72 des 0.42
+  1:30  detras del tacho.mp3
+        1:59-3:03  63s  103.4bpm x0.962
+        tramo: score 0.62 | tim 0.61 gro 0.70 afi 0.47 ton 0.50 son 0.60
+        toma:  ejec 0.43 | int 0.73 cre 0.79 des 0.68
+  2:32  apolo kanky futurista macarena alonsao.mp3
+        0:00-2:30  150s  107.7bpm
+        tramo: score 0.57 | tim 0.53 gro 0.74 afi 0.31 ton 0.21 son 0.41
+        toma:  ejec 0.49 | int 0.73 cre 0.77 des 0.69
+  5:01  queriendonebulosa zapada completa.mp3
+        89:30-90:30  61s  112.3bpm
+        tramo: score 0.71 | tim 0.63 gro 0.85 afi 0.62 ton 0.49 son 0.57
+        toma:  ejec 0.47 | int 0.74 cre 0.94 des 0.54
+  6:01  queriendonebulosa zapada completa.mp3
+        2:00-3:31  91s  123.0bpm
+        tramo: score 0.62 | tim 0.65 gro 0.57 afi 0.74 ton 0.76 son 0.73
+        toma:  ejec 0.47 | int 0.74 cre 0.94 des 0.54
+  7:31  experimental - nebu doc monk zapada primera parte.mp3
+        0:30-1:31  61s  123.0bpm
+        tramo: score 0.57 | tim 0.49 gro 0.58 afi 0.59 ton 0.32 son 0.52
+        toma:  ejec 0.52 | int 0.75 cre 0.65 des 0.85
+  8:31  experimental - nebu doc monk zapada primera parte.mp3
+        4:00-5:01  61s  123.0bpm
+        tramo: score 0.57 | tim 0.54 gro 0.62 afi 0.54 ton 0.08 son 0.58
+        toma:  ejec 0.52 | int 0.75 cre 0.65 des 0.85
+  9:31  cristian dior basta podti.mp3
+        1:29-2:31  61s  123.0bpm
+        tramo: score 0.57 | tim 0.62 gro 0.62 afi 0.31 ton 0.42 son 0.41
+        toma:  ejec 0.48 | int 0.82 cre 0.83 des 0.81
+ 10:31  simbawue fuete.mp3
+        1:00-2:31  91s  123.0bpm
+        tramo: score 0.58 | tim 0.73 gro 0.59 afi 0.46 ton 0.07 son 0.57
+        toma:  ejec 0.52 | int 0.75 cre 0.55 des 0.94
+ 12:01  kikiki sabath.mp3
+        3:30-4:31  61s  123.0bpm
+        tramo: score 0.68 | tim 0.83 gro 0.71 afi 0.28 ton 0.00 son 0.55
+        toma:  ejec 0.53 | int 0.76 cre 0.65 des 0.88
+ 13:01  kikiki sabath.mp3
+        6:00-7:01  61s  123.0bpm
+        tramo: score 0.61 | tim 0.73 gro 0.53 afi 0.47 ton 0.02 son 0.37
+        toma:  ejec 0.53 | int 0.76 cre 0.65 des 0.88
+ 14:01  fluyendo no sabe valora nebu.mp3
+        5:59-7:01  61s  123.0bpm
+        tramo: score 0.58 | tim 0.72 gro 0.37 afi 0.64 ton 0.76 son 0.55
+        toma:  ejec 0.46 | int 0.72 cre 0.65 des 0.78
+ 15:01  angelical solo teclados.mp3
+        2:59-4:00  60s  117.5bpm
+        tramo: score 0.66 | tim 0.68 gro 0.63 afi 0.66 ton 0.78 son 0.60
+        toma:  ejec 0.56 | int 0.77 cre 0.88 des 0.66
+ 16:00  nebu side - estoy de pasada.mp3
+        4:59-6:00  61s  117.5bpm
+        tramo: score 0.65 | tim 0.64 gro 0.73 afi 0.53 ton 0.37 son 0.60
+        toma:  ejec 0.52 | int 0.76 cre 0.63 des 0.89
+ 17:00  cismiqueado.mp3
+        0:00-2:01  121s  129.2bpm
+        tramo: score 0.62 | tim 0.75 gro 0.48 afi 0.54 ton 0.61 son 0.65
+        toma:  ejec 0.61 | int 0.77 cre 0.72 des 0.81
+ 19:00  cismiqueado.mp3
+        2:30-4:01  91s  129.2bpm
+        tramo: score 0.59 | tim 0.70 gro 0.52 afi 0.69 ton 0.47 son 0.51
+        toma:  ejec 0.61 | int 0.77 cre 0.72 des 0.81
+ 20:30  mutant zap.mp3
+        12:29-13:30  61s  129.2bpm
+        tramo: score 0.61 | tim 0.63 gro 0.56 afi 0.67 ton 0.68 son 0.50
+        toma:  ejec 0.51 | int 0.57 cre 0.72 des 0.42
+
+Duración total: 21.5 min
