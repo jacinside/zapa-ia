@@ -397,9 +397,11 @@ def cmd_compilado(a):
               "tim=timing, gro=groove, afi=afinación, ton=tonal_outlier, cre=creatividad, "
               "des=desarrollo, son=sonido. 'tramo' = ese tramo; 'toma' = el archivo entero.", ""]
     t0 = 0.0
+    _posiciones = []            # (segundo en el compilado, toma) para la carátula
     for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
         dur = fin - ini
         aj = f" x{ratio:.3f}" if abs(ratio - 1.0) > 1e-3 else ""
+        _posiciones.append((t0, toma))
         g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
         w = {k: float(g[k].median()) if len(g) and k in g else float("nan") for k in dims_v}
         w["score"] = float(g["score"].median()) if len(g) else sc_
@@ -420,6 +422,16 @@ def cmd_compilado(a):
                      tags={"title": f"Zapa-IA {codigo}", "artist": "Nebulosa",
                            "album": "Zapa-IA compilados", "comment": params})
         lineas.append(f"\nDuración total: {len(audio)/60000:.1f} min")
+        # Carátula con la lista: es la "foto" que muestran Drive y el celular.
+        try:
+            items = [(_mmss(t), toma.replace(".mp3", "")) for t, toma in _posiciones]
+            png = str(Path(a.out).with_suffix(".png"))
+            compilado.portada(f"{a.perfil.upper()} · {filtro.replace('_', ' ')}",
+                              f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min · "
+                              f"{'dinámico' if a.dinamico else 'fijo'}", items, png)
+            compilado.embeber_portada(a.out, png)
+        except Exception as e:
+            print(f"  (sin carátula: {e})")
     Path(a.out).with_suffix(".txt").write_text("\n".join(lineas) + "\n", encoding="utf-8")
     if audio is not None:
         print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}  (+ .txt con la lista)")
