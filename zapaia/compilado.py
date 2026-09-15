@@ -212,3 +212,59 @@ def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
     if out is not None:
         out = out.fade_out(int(fade_borde_s * 1000))
     return out, usados
+
+
+# ---------------------------------------------------------------------------
+# Carátula con la lista de temas, embebida en el MP3 (tag ID3 APIC). Es la
+# "foto" que muestran Drive, el celular y cualquier reproductor: sin ella se ve
+# el ícono genérico. Se genera desde la lista ya armada, así que no cuesta nada.
+# ---------------------------------------------------------------------------
+
+def portada(titulo, subtitulo, items, out_png, lado=1400):
+    """items: lista de (tiempo_mmss, nombre). Escribe un PNG cuadrado."""
+    from PIL import Image, ImageDraw, ImageFont
+    fuentes = ["/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+               "/System/Library/Fonts/Supplemental/Arial.ttf",
+               "/System/Library/Fonts/Helvetica.ttc"]
+    def font(size, bold=False):
+        for f in (fuentes if bold else fuentes[1:] + fuentes[:1]):
+            try:
+                return ImageFont.truetype(f, size)
+            except Exception:
+                continue
+        return ImageFont.load_default()
+    img = Image.new("RGB", (lado, lado), (21, 24, 26))
+    d = ImageDraw.Draw(img)
+    m = int(lado * 0.06)
+    d.rectangle([m, m, m + int(lado * 0.02), m + int(lado * 0.11)], fill=(127, 182, 194))
+    d.text((m + int(lado * 0.045), m), titulo, fill=(230, 233, 231), font=font(int(lado * 0.055), True))
+    d.text((m + int(lado * 0.045), m + int(lado * 0.07)), subtitulo, fill=(167, 176, 171), font=font(int(lado * 0.03)))
+    # Tamaño de letra según cuántas líneas hay que meter.
+    n = max(len(items), 1)
+    alto_disp = lado - m * 2 - int(lado * 0.16) - int(lado * 0.05)   # deja lugar al pie
+    fs = max(int(min(alto_disp / n / 1.35, lado * 0.036)), int(lado * 0.018))
+    f_t, f_n = font(fs), font(fs)
+    y = m + int(lado * 0.16)
+    ancho_t = int(fs * 3.4)
+    for t, nombre in items:
+        d.text((m, y), t, fill=(127, 182, 194), font=f_t)
+        nombre = nombre[:int((lado - m * 2 - ancho_t) / (fs * 0.52))]
+        d.text((m + ancho_t, y), nombre, fill=(230, 233, 231), font=f_n)
+        y += int(fs * 1.35)
+    d.text((m, lado - m - int(lado * 0.025)), "Zapa-IA", fill=(90, 100, 96), font=font(int(lado * 0.022)))
+    img.save(out_png, "PNG")
+    return out_png
+
+
+def embeber_portada(mp3, png):
+    """Agrega la carátula sin recodificar el audio (copia el stream)."""
+    import os
+    import subprocess
+    tmp = mp3 + ".tmp.mp3"
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mp3, "-i", png,
+                        "-map", "0:a", "-map", "1", "-c", "copy", "-id3v2_version", "3",
+                        "-metadata:s:v", "title=Album cover", "-metadata:s:v", "comment=Cover (front)",
+                        tmp], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip()[:300])
+    os.replace(tmp, mp3)
