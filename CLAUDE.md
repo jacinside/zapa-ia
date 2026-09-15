@@ -330,6 +330,16 @@ Arma un solo MP3 con los mejores tramos de varias tomas. Decisiones de diseño:
 - `--sort-by` elige con qué criterio se seleccionan las tomas Y los tramos: `timing` para
   prolijidad de ejecución, `groove` para enganche, etc.
 
+### Carátula y versión MP4
+
+Cada compilado sale con (1) tags ID3 (título/comentario con los parámetros), (2) una carátula PNG
+embebida con la lista de temas, y (3) un **MP4** con la misma lista y el tema actual resaltado.
+El MP4 existe porque **la app de Drive en el celular no muestra la carátula de un MP3** (ícono
+fijo de auriculares) pero sí reproduce video. Se arma un cuadro por tramo (`cuadro()`), se
+concatenan con sus duraciones (`ffmpeg -f concat`) y se les pega el audio del MP3 **sin
+recodificar**: 2 segundos por compilado, +30–50 MB. `--sin-video` lo apaga. Un reproductor de
+música normal muestra la carátula del MP3 directamente.
+
 ### Modo dinámico (`--dinamico`): tramos de largo variable, enganchados
 
 Pedido del usuario después de escuchar los compilados fijos: "sin sonido entre temas, enganchados,
