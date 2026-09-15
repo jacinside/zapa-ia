@@ -268,3 +268,80 @@ def embeber_portada(mp3, png):
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip()[:300])
     os.replace(tmp, mp3)
+
+
+# ---------------------------------------------------------------------------
+# Versión VIDEO (MP4) del compilado: la app de Drive no muestra la carátula de
+# un MP3 (ícono fijo de auriculares), pero sí reproduce video. Se arma un cuadro
+# por tramo con la lista completa y el tramo actual resaltado, se encadenan con
+# sus duraciones y se les pega el audio del MP3 sin recodificar.
+# ---------------------------------------------------------------------------
+
+def cuadro(titulo, subtitulo, items, resaltar, out_png, ancho=1280, alto=720):
+    """items: [(mmss, nombre)]; resaltar: índice del tramo actual."""
+    from PIL import Image, ImageDraw, ImageFont
+    fuentes = ["/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+               "/System/Library/Fonts/Supplemental/Arial.ttf", "/System/Library/Fonts/Helvetica.ttc"]
+    def font(size, bold=False):
+        for f in (fuentes if bold else fuentes[1:] + fuentes[:1]):
+            try:
+                return ImageFont.truetype(f, size)
+            except Exception:
+                continue
+        return ImageFont.load_default()
+    img = Image.new("RGB", (ancho, alto), (21, 24, 26))
+    d = ImageDraw.Draw(img)
+    m = int(alto * 0.06)
+    d.rectangle([m, m, m + 10, m + int(alto * 0.10)], fill=(127, 182, 194))
+    d.text((m + 26, m - 4), titulo, fill=(230, 233, 231), font=font(int(alto * 0.055), True))
+    d.text((m + 26, m + int(alto * 0.06)), subtitulo, fill=(167, 176, 171), font=font(int(alto * 0.028)))
+    n = max(len(items), 1)
+    # Dos columnas si no entra en una.
+    cols = 1 if n <= 12 else 2
+    filas = -(-n // cols)
+    alto_disp = alto - m * 2 - int(alto * 0.17)
+    fs = max(int(min(alto_disp / filas / 1.3, alto * 0.036)), int(alto * 0.02))
+    f_n, f_b = font(fs), font(fs, True)
+    col_w = (ancho - m * 2) // cols
+    y0 = m + int(alto * 0.17)
+    for i, (t, nombre) in enumerate(items):
+        c, r = divmod(i, filas)
+        x, y = m + c * col_w, y0 + r * int(fs * 1.3)
+        activo = i == resaltar
+        if activo:
+            d.rounded_rectangle([x - 8, y - 3, x + col_w - 28, y + fs + 5], radius=6, fill=(43, 93, 107))
+        maxc = int((col_w - fs * 3.6 - 28) / (fs * 0.52))
+        d.text((x, y), t, fill=(230, 233, 231) if activo else (127, 182, 194), font=f_b if activo else f_n)
+        d.text((x + int(fs * 3.4), y), nombre[:maxc], fill=(255, 255, 255) if activo else (200, 205, 202),
+               font=f_b if activo else f_n)
+    d.text((m, alto - m - int(alto * 0.03)), "Zapa-IA", fill=(90, 100, 96), font=font(int(alto * 0.024)))
+    img.save(out_png, "PNG")
+
+
+def video_compilado(mp3, titulo, subtitulo, posiciones, out_mp4, workdir):
+    """posiciones: [(segundo_inicio, nombre)] en orden. Genera el MP4."""
+    import os
+    import subprocess
+    from pydub.utils import mediainfo
+    total = float(mediainfo(mp3)["duration"])
+    items = [(_mmss_(t), n) for t, n in posiciones]
+    os.makedirs(workdir, exist_ok=True)
+    lista = os.path.join(workdir, "cuadros.txt")
+    with open(lista, "w", encoding="utf-8") as fh:
+        for i, (t, _) in enumerate(posiciones):
+            fin = posiciones[i + 1][0] if i + 1 < len(posiciones) else total
+            png = os.path.join(workdir, f"cuadro_{i:03d}.png")
+            cuadro(titulo, subtitulo, items, i, png)
+            fh.write(f"file '{os.path.abspath(png)}'\nduration {max(fin - t, 0.5):.3f}\n")
+        fh.write(f"file '{os.path.abspath(png)}'\n")     # el concat exige repetir el último
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lista,
+                        "-i", mp3, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-tune", "stillimage",
+                        "-preset", "veryfast", "-r", "4", "-pix_fmt", "yuv420p", "-c:a", "copy",
+                        "-shortest", "-movflags", "+faststart", out_mp4], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip()[:400])
+    return out_mp4
+
+
+def _mmss_(s):
+    return "%d:%02d" % (int(s) // 60, int(s) % 60)
