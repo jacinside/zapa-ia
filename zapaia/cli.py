@@ -430,8 +430,17 @@ def cmd_compilado(a):
                               f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min · "
                               f"{'dinámico' if a.dinamico else 'fijo'}", items, png)
             compilado.embeber_portada(a.out, png)
+            # Versión MP4: la app de Drive no muestra la carátula del MP3, pero
+            # reproduce video con la lista y el tema actual resaltado.
+            if not a.sin_video:
+                mp4 = str(Path(a.out).with_suffix(".mp4"))
+                compilado.video_compilado(
+                    a.out, f"{a.perfil.upper()} · {filtro.replace('_', ' ')}",
+                    f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min", _posiciones, mp4,
+                    str(Path(a.out).with_suffix("")) + "_cuadros")
+                print(f"  video -> {mp4}")
         except Exception as e:
-            print(f"  (sin carátula: {e})")
+            print(f"  (sin carátula/video: {e})")
     Path(a.out).with_suffix(".txt").write_text("\n".join(lineas) + "\n", encoding="utf-8")
     if audio is not None:
         print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}  (+ .txt con la lista)")
@@ -867,6 +876,8 @@ def main(argv=None):
                    help="time-stretch leve para que el tempo enganche con el tramo anterior")
     m.add_argument("--max-stretch", type=float, default=0.04,
                    help="ajuste máximo de tempo (0.04 = 4%%)")
+    m.add_argument("--sin-video", action="store_true",
+                   help="no generar el MP4 con la lista (Drive no muestra la carátula del MP3)")
     m.add_argument("--solo-lista", action="store_true",
                    help="no renderizar audio: solo escribir el .txt con la lista y los scores")
     m.set_defaults(func=cmd_compilado)
