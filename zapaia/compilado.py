@@ -210,15 +210,19 @@ def normalizar_tramo(seg, objetivo_dbfs=-19.0, techo_pico_dbfs=-1.0):
 
 def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
               ajustar_tempo=False, max_stretch=0.04, snap_fin=False,
-              normalizar=True, objetivo_dbfs=-19.0):
+              normalizar=True, objetivo_dbfs=-16.0):
     """tramos: lista de (ruta, inicio_s, fin_s). Devuelve (AudioSegment, usados).
 
     usados: lista de (ruta, inicio, fin, tempo, ratio_aplicado, ganancia_db).
+
+    Normalización: NUNCA se baja un tramo, solo se suben los que están por
+    debajo. El nivel objetivo es el del tramo más fuerte del compilado, con tope
+    en `objetivo_dbfs` (más alto que eso aplasta la dinámica). Regla del usuario:
+    "no bajes volúmenes, solo subí los que están bajos".
     """
     dec = _Decoder()
-    out = None
-    usados = []
     cf = int(crossfade_s * 1000)
+    piezas = []                     # (ruta, ini, trozo, tempo, ratio)
     t_prev = float("nan")
     for ruta, ini, fin in tramos:
         if snap:
@@ -237,11 +241,23 @@ def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
             if abs(r - 1.0) <= max_stretch:
                 ratio = r
                 trozo = _stretch(trozo, ratio)
-        ganancia = 0.0
-        if normalizar:
-            trozo, ganancia = normalizar_tramo(trozo, objetivo_dbfs)
-        usados.append((ruta, ini, ini + len(trozo) / 1000.0, tempo, ratio, ganancia))
         t_prev = tempo * ratio if tempo == tempo else t_prev
+        piezas.append((ruta, ini, trozo, tempo, ratio))
+
+    if not piezas:
+        return None, []
+    # Objetivo = el más fuerte (sin pasar el tope). Solo se suben los de abajo.
+    niveles = [p[2].dBFS for p in piezas if p[2].dBFS != float("-inf")]
+    objetivo = min(max(niveles), objetivo_dbfs) if niveles else objetivo_dbfs
+
+    out, usados = None, []
+    for ruta, ini, trozo, tempo, ratio in piezas:
+        ganancia = 0.0
+        if normalizar and trozo.dBFS < objetivo - 0.5:
+            trozo, ganancia = normalizar_tramo(trozo, objetivo)
+            if ganancia < 0:            # loudnorm nunca debería bajar; por las dudas
+                trozo, ganancia = trozo.apply_gain(-ganancia), 0.0
+        usados.append((ruta, ini, ini + len(trozo) / 1000.0, tempo, ratio, ganancia))
         if out is None:
             out = trozo.fade_in(int(fade_borde_s * 1000))
         else:

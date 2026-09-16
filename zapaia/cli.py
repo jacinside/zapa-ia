@@ -894,8 +894,9 @@ def main(argv=None):
                    help="video estático (sin la onda que se mueve con la música)")
     m.add_argument("--sin-normalizar", action="store_true",
                    help="no igualar el volumen entre tramos")
-    m.add_argument("--nivel", type=float, default=-19.0,
-                   help="RMS objetivo por tramo en dBFS (default -19; picos con techo en -1)")
+    m.add_argument("--nivel", type=float, default=-16.0,
+                   help="tope del nivel objetivo (dBFS). El objetivo real es el tramo más fuerte "
+                        "del compilado; solo se SUBEN los que están por debajo, nunca se baja")
     m.add_argument("--sin-video", action="store_true",
                    help="no generar el MP4 con la lista (Drive no muestra la carátula del MP3)")
     m.add_argument("--solo-lista", action="store_true",
