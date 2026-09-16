@@ -186,7 +186,16 @@ def normalizar_tramo(seg, objetivo_dbfs=-19.0, techo_pico_dbfs=-1.0):
         return seg, 0.0
     ganancia = objetivo_dbfs - seg.dBFS
     ganancia = min(ganancia, techo_pico_dbfs - seg.max_dBFS)
-    return seg.apply_gain(ganancia), float(ganancia)
+    out = seg.apply_gain(ganancia)
+    # Lo que importa es SUBIR lo que está bajo. Si el techo de picos frenó la
+    # subida (picos altos con cuerpo bajo), un compresor suave achica los picos
+    # y deja levantar el resto. Solo se aplica a los tramos que lo necesitan.
+    if objetivo_dbfs - out.dBFS > 1.0:
+        comp = seg.compress_dynamic_range(threshold=-12.0, ratio=4.0, attack=5.0, release=80.0)
+        g2 = min(objetivo_dbfs - comp.dBFS, techo_pico_dbfs - comp.max_dBFS)
+        if comp.dBFS + g2 > out.dBFS + 0.3:
+            out, ganancia = comp.apply_gain(g2), float(g2)
+    return out, float(ganancia)
 
 
 def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
