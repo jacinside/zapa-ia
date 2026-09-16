@@ -457,7 +457,11 @@ def cmd_compilado(a):
     import json as _json
     from . import config as _cfg
     _banda = _cfg.banda()
+    # Los IDs de Drive van en el manifest (que vive EN Drive, no en el repo): el
+    # player web los usa para mostrar las fotos de la banda de fondo.
+    _dimg = (_banda.get("drive", {}).get("imagenes") or {}).get("folder_id")
     manifest = {"banda": _banda["nombre"], "banda_clave": _banda["clave"],
+                "imagenes_folder_id": _dimg,
                 "compilado": codigo, "perfil": a.perfil, "filtro": filtro, "params": params,
                 "fver": __import__("zapaia").FEATURE_VERSION, "tramos": []}
     tt = 0.0
