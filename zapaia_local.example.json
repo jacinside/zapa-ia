@@ -1,7 +1,14 @@
 {
-  "drive": {
-    "salida":   {"folder_id": "ID_DE_LA_CARPETA_DONDE_SUBIR_COMPILADOS"},
-    "nebulosa": {"folder_id": "ID_DE_LA_CARPETA_CON_LOS_ENSAYOS", "resource_key": "OPCIONAL"},
-    "imagenes": {"folder_id": "ID_DE_LA_CARPETA_DE_FOTOS", "resource_key": "OPCIONAL"}
+  "banda_default": "mibanda",
+  "bandas": {
+    "mibanda": {
+      "nombre": "Mi Banda",
+      "root": "mibanda",
+      "drive": {
+        "ensayos":  {"folder_id": "ID_CARPETA_DRIVE_CON_LOS_ENSAYOS", "resource_key": "OPCIONAL"},
+        "salida":   {"folder_id": "ID_CARPETA_DRIVE_DONDE_SUBIR_COMPILADOS"},
+        "imagenes": {"folder_id": "ID_CARPETA_DRIVE_CON_FOTOS", "resource_key": "OPCIONAL"}
+      }
+    }
   }
 }

@@ -18,7 +18,7 @@ import time
 # El ID vive en zapaia_local.json (gitignored): el repo es público.
 def origen_default():
     from . import config
-    return config.remote("nebulosa")
+    return config.remote("ensayos")
 
 
 ORIGEN_DEFAULT = None   # se resuelve con origen_default() al usarse

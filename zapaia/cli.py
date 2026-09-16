@@ -420,9 +420,10 @@ def cmd_compilado(a):
         t0 += dur - crossfade
     print("\n".join("  " + l for l in lineas[5:]))
 
+    from . import config as _cfg
     if audio is not None:
         audio.export(a.out, format="mp3", bitrate=a.bitrate,
-                     tags={"title": f"Zapa-IA {codigo}", "artist": "Nebulosa",
+                     tags={"title": f"Zapa-IA {codigo}", "artist": _cfg.banda()["nombre"],
                            "album": "Zapa-IA compilados", "comment": params})
         lineas.append(f"\nDuración total: {len(audio)/60000:.1f} min")
         # Carátula con la lista: es la "foto" que muestran Drive y el celular.
@@ -431,7 +432,7 @@ def cmd_compilado(a):
                      for t, toma, anio in _posiciones]
             png = str(Path(a.out).with_suffix(".png"))
             compilado.portada(f"{a.perfil.upper()} · {filtro.replace('_', ' ')}",
-                              f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min · "
+                              f"Zapa-IA · {_cfg.banda()['nombre']} · {len(audio)/60000:.0f} min · "
                               f"{'dinámico' if a.dinamico else 'fijo'}", items, png)
             compilado.embeber_portada(a.out, png)
             # Versión MP4: la app de Drive no muestra la carátula del MP3, pero
@@ -441,7 +442,7 @@ def cmd_compilado(a):
                 pos_v = [(t, toma.replace(".mp3", ""), anio) for t, toma, anio in _posiciones]
                 compilado.video_compilado(
                     a.out, f"{a.perfil.upper()} · {filtro.replace('_', ' ')}",
-                    f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min", pos_v, mp4,
+                    f"Zapa-IA · {_cfg.banda()['nombre']} · {len(audio)/60000:.0f} min", pos_v, mp4,
                     str(Path(a.out).with_suffix("")) + "_cuadros",
                     imagenes_dir=(a.imagenes if os.path.isdir(a.imagenes or "") else None),
                     visualizador=not a.sin_visualizador, semilla=codigo)
@@ -452,7 +453,10 @@ def cmd_compilado(a):
     # manifest.json: lo que una app necesita para mostrar capítulos y recibir "me gusta"
     # por tramo (ver docs/review-2026-09-12.md §5). Mismo nombre que el MP3.
     import json as _json
-    manifest = {"compilado": codigo, "perfil": a.perfil, "filtro": filtro, "params": params,
+    from . import config as _cfg
+    _banda = _cfg.banda()
+    manifest = {"banda": _banda["nombre"], "banda_clave": _banda["clave"],
+                "compilado": codigo, "perfil": a.perfil, "filtro": filtro, "params": params,
                 "fver": __import__("zapaia").FEATURE_VERSION, "tramos": []}
     tt = 0.0
     for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
