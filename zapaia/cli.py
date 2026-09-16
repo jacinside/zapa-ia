@@ -448,11 +448,15 @@ def cmd_compilado(a):
         print(f"\nLista -> {Path(a.out).with_suffix('.txt')}  (sin audio: --solo-lista)")
 
 
-# La carpeta de salida en Drive se direcciona por ID, no por nombre: Drive admite
-# dos carpetas con el mismo nombre y rclone creó una duplicada el 14/9, con lo
-# cual los compilados nuevos iban a una carpeta que el usuario no veía.
-DRIVE_SALIDA = "gdrive,root_folder_id=1A2p8uBwgPNnmGXRsfGipL8cX-RnhZnuR:"
-DRIVE_FEEDBACK = DRIVE_SALIDA + "feedback"
+# La carpeta de salida en Drive se direcciona por ID, no por nombre (Drive admite
+# nombres duplicados). El ID vive en zapaia_local.json, NO en el repo público.
+def _drive_salida():
+    from . import config
+    return config.remote("salida")
+
+
+def _drive_feedback():
+    return _drive_salida() + "feedback"
 
 
 def _filtrar_fechas(a, con, d):
@@ -507,7 +511,7 @@ def cmd_sync(a):
 def _sync_previo(a):
     """--sync: antes de rankear/compilar, traer lo nuevo de Drive y procesarlo."""
     ns = argparse.Namespace(root=a.root, db=a.db, sr=a.sr, win=a.win, hop=a.hop,
-                            meses=a.sync_meses, desde=None, origen="gdrive:Zapadas New/Nebulosa",
+                            meses=a.sync_meses, desde=None, origen=None,
                             destino=None, excluir=None, dry_run=False, extraer=True,
                             jobs=max(os.cpu_count() // 2, 1), instalar_launchd=None)
     print("── sync previo ──")
@@ -613,7 +617,7 @@ def cmd_comparar(a):
         print(f"\nUn solo MP3: {todo} ({len(AudioSegment.from_file(str(todo)))/60000:.1f} min)")
 
     if a.drive:
-        dest = f"{DRIVE_FEEDBACK}/lote_{lote:03d}/"
+        dest = f"{_drive_feedback()}/lote_{lote:03d}/"
         print(f"\nSubiendo a {dest} ...")
         r = subprocess.run(["rclone", "copy", str(outdir), dest], capture_output=True, text=True)
         print("  listo" if r.returncode == 0 else f"  ERROR rclone: {r.stderr.strip()[:300]}")
@@ -743,7 +747,7 @@ def cmd_player(a):
     pares = player.leer_lote_txt(str(lote_dir / "lote.txt"))
     ids_path = lote_dir / "drive_ids.json"
     if not ids_path.exists():
-        dest = f"{DRIVE_SALIDA}player/lote_{a.lote:03d}"
+        dest = f"{_drive_salida()}player/lote_{a.lote:03d}"
         print(f"Subiendo clips a {dest} ...")
         subprocess.run(["rclone", "copy", str(lote_dir), dest, "--include", "par_*.mp3"],
                        capture_output=True)
@@ -923,7 +927,7 @@ def main(argv=None):
     common(s)
     s.add_argument("--meses", type=int, default=3, help="últimos N meses (default 3)")
     s.add_argument("--desde", default=None, help="o desde AAAA-MM-DD")
-    s.add_argument("--origen", default="gdrive:Zapadas New/Nebulosa")
+    s.add_argument("--origen", default=None, help="remote rclone de origen (default: Nebulosa por ID)")
     s.add_argument("--destino", default=None,
                    help="carpeta local (default <root>/drive/AAAA-MM/)")
     s.add_argument("--excluir", nargs="*", default=None,

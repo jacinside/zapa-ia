@@ -30,3 +30,11 @@ feedback/
 *.png
 *.mp4
 *_cuadros/
+
+# IDs de Drive y claves: NUNCA al repo (es público)
+zapaia_local.json
+# salidas de compilados
+compilado_*.txt
+
+# fotos de la banda (bajadas de Drive para los videos): NUNCA al repo
+imagenes/

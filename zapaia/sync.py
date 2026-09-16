@@ -13,7 +13,15 @@ import os
 import subprocess
 import time
 
-ORIGEN_DEFAULT = "gdrive:Zapadas New/Nebulosa"
+# Por ID + resource_key, no por nombre: Drive admite nombres duplicados y las
+# rutas por nombre ya fallaron dos veces (carpeta duplicada; listado vacío).
+# El ID vive en zapaia_local.json (gitignored): el repo es público.
+def origen_default():
+    from . import config
+    return config.remote("nebulosa")
+
+
+ORIGEN_DEFAULT = None   # se resuelve con origen_default() al usarse
 # Subcarpetas que NO son ensayos crudos: mezclas, proyectos y nuestras propias salidas.
 EXCLUIR_DEFAULT = ("Seleccion IA - compilados", "Canciones", "REAPER", "NINJAMsessions")
 
@@ -25,8 +33,9 @@ def _rclone(args, timeout=600):
     return r.stdout
 
 
-def listar(origen=ORIGEN_DEFAULT):
+def listar(origen=None):
     """Todos los MP3 bajo `origen`, con Path relativo, Size, ModTime (UTC) e ID."""
+    origen = origen or origen_default()
     out = _rclone(["lsjson", origen, "-R", "--files-only", "--include", "*.mp3"])
     items = json.loads(out)
     for it in items:
@@ -84,9 +93,10 @@ def bajar(it, origen, destino_root):
     return local
 
 
-def sincronizar(con, root, destino_root, desde, origen=ORIGEN_DEFAULT,
+def sincronizar(con, root, destino_root, desde, origen=None,
                 excluir=EXCLUIR_DEFAULT, dry_run=False, log=print):
     """Devuelve (bajados, saltados_locales, saltados_manifest, errores)."""
+    origen = origen or origen_default()
     items = filtrar(listar(origen), desde, excluir)
     locales = locales_por_nombre(root)
     bajados, sl, sm, errores = [], 0, 0, []
