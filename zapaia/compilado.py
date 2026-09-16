@@ -175,11 +175,26 @@ def _stretch(seg, rate):
 # Construcción
 # ---------------------------------------------------------------------------
 
+def normalizar_tramo(seg, objetivo_dbfs=-19.0, techo_pico_dbfs=-1.0):
+    """Lleva el tramo a un RMS común sin pasar el techo de picos.
+
+    Medido antes de esto: 8-11 dB de diferencia entre tramos del mismo compilado
+    (grabaciones distintas). Un tramo ya comprimido al tope no se puede subir sin
+    saturar: se sube hasta donde el pico lo permita. Devuelve (seg, ganancia_db).
+    """
+    if seg.dBFS == float("-inf"):
+        return seg, 0.0
+    ganancia = objetivo_dbfs - seg.dBFS
+    ganancia = min(ganancia, techo_pico_dbfs - seg.max_dBFS)
+    return seg.apply_gain(ganancia), float(ganancia)
+
+
 def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
-              ajustar_tempo=False, max_stretch=0.04, snap_fin=False):
+              ajustar_tempo=False, max_stretch=0.04, snap_fin=False,
+              normalizar=True, objetivo_dbfs=-19.0):
     """tramos: lista de (ruta, inicio_s, fin_s). Devuelve (AudioSegment, usados).
 
-    usados: lista de (ruta, inicio, fin, tempo, ratio_aplicado).
+    usados: lista de (ruta, inicio, fin, tempo, ratio_aplicado, ganancia_db).
     """
     dec = _Decoder()
     out = None
@@ -203,7 +218,10 @@ def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
             if abs(r - 1.0) <= max_stretch:
                 ratio = r
                 trozo = _stretch(trozo, ratio)
-        usados.append((ruta, ini, ini + len(trozo) / 1000.0, tempo, ratio))
+        ganancia = 0.0
+        if normalizar:
+            trozo, ganancia = normalizar_tramo(trozo, objetivo_dbfs)
+        usados.append((ruta, ini, ini + len(trozo) / 1000.0, tempo, ratio, ganancia))
         t_prev = tempo * ratio if tempo == tempo else t_prev
         if out is None:
             out = trozo.fade_in(int(fade_borde_s * 1000))

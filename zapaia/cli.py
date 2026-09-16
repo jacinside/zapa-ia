@@ -367,11 +367,12 @@ def cmd_compilado(a):
     if a.solo_lista:
         # Sin renderizar audio: misma selección, tempo del caché, sin ajuste.
         audio = None
-        usados = [(t[0], t[1], t[2], t[4], 1.0) for t in tramos]
+        usados = [(t[0], t[1], t[2], t[4], 1.0, 0.0) for t in tramos]
     else:
         audio, usados = compilado.construir(
             [(t[0], t[1], t[2]) for t in tramos], crossfade, a.fade, not a.sin_snap,
-            ajustar_tempo=a.ajustar_tempo, max_stretch=a.max_stretch, snap_fin=a.dinamico)
+            ajustar_tempo=a.ajustar_tempo, max_stretch=a.max_stretch, snap_fin=a.dinamico,
+            normalizar=not a.sin_normalizar, objetivo_dbfs=a.nivel)
         if audio is None:
             sys.exit("No se pudo construir el compilado.")
 
@@ -401,9 +402,10 @@ def cmd_compilado(a):
     from . import sync as sy
     _fechas = sy.fechas_locales(con, [t[0] for t in tramos])
     _anios = {r: f.year for r, f in _fechas.items()}
-    for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
+    for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio, gan) in zip(tramos, usados):
         dur = fin - ini
         aj = f" x{ratio:.3f}" if abs(ratio - 1.0) > 1e-3 else ""
+        aj += f" {gan:+.1f}dB" if abs(gan) > 0.05 else ""
         _posiciones.append((t0, toma, _anios.get(ruta)))
         g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
         w = {k: float(g[k].median()) if len(g) and k in g else float("nan") for k in dims_v}
@@ -459,10 +461,11 @@ def cmd_compilado(a):
                 "compilado": codigo, "perfil": a.perfil, "filtro": filtro, "params": params,
                 "fver": __import__("zapaia").FEATURE_VERSION, "tramos": []}
     tt = 0.0
-    for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
+    for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio, gan) in zip(tramos, usados):
         dur = fin - ini
         g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
         manifest["tramos"].append({
+            "ganancia_db": round(gan, 1),
             "pos_s": round(tt, 2), "dur_s": round(dur, 2), "toma": toma,
             "origen_ini_s": round(ini, 2), "origen_fin_s": round(fin, 2),
             "tempo": None if tempo != tempo else round(tempo, 1), "anio": _anios.get(ruta),
@@ -889,6 +892,10 @@ def main(argv=None):
                    help="carpeta con fotos para el fondo del video (una distinta por tramo)")
     m.add_argument("--sin-visualizador", action="store_true",
                    help="video estático (sin la onda que se mueve con la música)")
+    m.add_argument("--sin-normalizar", action="store_true",
+                   help="no igualar el volumen entre tramos")
+    m.add_argument("--nivel", type=float, default=-19.0,
+                   help="RMS objetivo por tramo en dBFS (default -19; picos con techo en -1)")
     m.add_argument("--sin-video", action="store_true",
                    help="no generar el MP4 con la lista (Drive no muestra la carátula del MP3)")
     m.add_argument("--solo-lista", action="store_true",
