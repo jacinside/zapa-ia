@@ -38,3 +38,4 @@ compilado_*.txt
 
 # fotos de la banda (bajadas de Drive para los videos): NUNCA al repo
 imagenes/
+compilado_*.json

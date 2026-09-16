@@ -449,6 +449,25 @@ def cmd_compilado(a):
         except Exception as e:
             print(f"  (sin carátula/video: {e})")
     Path(a.out).with_suffix(".txt").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    # manifest.json: lo que una app necesita para mostrar capítulos y recibir "me gusta"
+    # por tramo (ver docs/review-2026-09-12.md §5). Mismo nombre que el MP3.
+    import json as _json
+    manifest = {"compilado": codigo, "perfil": a.perfil, "filtro": filtro, "params": params,
+                "fver": __import__("zapaia").FEATURE_VERSION, "tramos": []}
+    tt = 0.0
+    for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
+        dur = fin - ini
+        g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
+        manifest["tramos"].append({
+            "pos_s": round(tt, 2), "dur_s": round(dur, 2), "toma": toma,
+            "origen_ini_s": round(ini, 2), "origen_fin_s": round(fin, 2),
+            "tempo": None if tempo != tempo else round(tempo, 1), "anio": _anios.get(ruta),
+            "score": round(float(g["score"].median()), 3) if len(g) else None,
+            **{k: round(float(g[k].median()), 3) for k in dims_v if len(g) and k in g},
+        })
+        tt += dur - crossfade
+    Path(a.out).with_suffix(".json").write_text(_json.dumps(manifest, ensure_ascii=False, indent=1),
+                                                 encoding="utf-8")
     if audio is not None:
         print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}  (+ .txt con la lista)")
     else:

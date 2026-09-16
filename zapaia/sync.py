@@ -131,7 +131,10 @@ def sincronizar(con, root, destino_root, desde, origen=None,
 
 def fechas_locales(con, paths):
     """{ruta: datetime} usando el manifest de Drive si existe, si no el mtime local."""
-    manif = {lp: mt for lp, mt in con.execute("SELECT local_path, modtime FROM drive_files")}
+    cols = [r[1] for r in con.execute("PRAGMA table_info(drive_files)")]
+    q = "SELECT local_path, modtime" + (", btime" if "btime" in cols else ", NULL") + " FROM drive_files"
+    # Fecha de CREACIÓN en Drive si existe (btime), si no la de modificación.
+    manif = {lp: (bt or mt) for lp, mt, bt in con.execute(q)}
     out = {}
     for p in paths:
         if p in manif:

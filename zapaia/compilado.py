@@ -277,8 +277,22 @@ def embeber_portada(mp3, png):
 # sus duraciones y se les pega el audio del MP3 sin recodificar.
 # ---------------------------------------------------------------------------
 
-def cuadro(titulo, subtitulo, items, resaltar, out_png, ancho=1280, alto=720):
-    """items: [(mmss, nombre)]; resaltar: índice del tramo actual."""
+def _fondo(imagen, ancho, alto, oscurecer=0.30, blur=6):
+    """Foto de fondo recortada a 16:9, desenfocada y oscurecida para que el texto se lea."""
+    from PIL import Image, ImageFilter, ImageEnhance, ImageOps
+    try:
+        im = Image.open(imagen)
+        im = ImageOps.exif_transpose(im).convert("RGB")
+        im = ImageOps.fit(im, (ancho, alto), method=Image.LANCZOS, centering=(0.5, 0.4))
+        im = im.filter(ImageFilter.GaussianBlur(blur))
+        return ImageEnhance.Brightness(im).enhance(oscurecer)
+    except Exception:
+        return Image.new("RGB", (ancho, alto), (21, 24, 26))
+
+
+def cuadro(titulo, subtitulo, items, resaltar, out_png, ancho=1280, alto=720, fondo=None):
+    """items: [(mmss, nombre, anio_o_None)]; resaltar: índice del tramo actual;
+    fondo: ruta de una foto (opcional)."""
     from PIL import Image, ImageDraw, ImageFont
     fuentes = ["/System/Library/Fonts/Supplemental/Arial Bold.ttf",
                "/System/Library/Fonts/Supplemental/Arial.ttf", "/System/Library/Fonts/Helvetica.ttc"]
@@ -289,55 +303,82 @@ def cuadro(titulo, subtitulo, items, resaltar, out_png, ancho=1280, alto=720):
             except Exception:
                 continue
         return ImageFont.load_default()
-    img = Image.new("RGB", (ancho, alto), (21, 24, 26))
-    d = ImageDraw.Draw(img)
+    img = _fondo(fondo, ancho, alto) if fondo else Image.new("RGB", (ancho, alto), (21, 24, 26))
+    d = ImageDraw.Draw(img, "RGBA")
     m = int(alto * 0.06)
     d.rectangle([m, m, m + 10, m + int(alto * 0.10)], fill=(127, 182, 194))
-    d.text((m + 26, m - 4), titulo, fill=(230, 233, 231), font=font(int(alto * 0.055), True))
-    d.text((m + 26, m + int(alto * 0.06)), subtitulo, fill=(167, 176, 171), font=font(int(alto * 0.028)))
+    d.text((m + 26, m - 4), titulo, fill=(240, 242, 240), font=font(int(alto * 0.055), True))
+    d.text((m + 26, m + int(alto * 0.06)), subtitulo, fill=(190, 198, 194), font=font(int(alto * 0.028)))
+    d.text((ancho - m - int(alto * 0.13), m), "Zapa-IA", fill=(140, 150, 146), font=font(int(alto * 0.024)))
     n = max(len(items), 1)
-    # Dos columnas si no entra en una.
-    cols = 1 if n <= 12 else 2
+    cols = 1 if n <= 11 else 2
     filas = -(-n // cols)
-    alto_disp = alto - m * 2 - int(alto * 0.17)
+    alto_disp = alto - m - int(alto * 0.17) - int(alto * 0.22)      # deja lugar al visualizador
     fs = max(int(min(alto_disp / filas / 1.3, alto * 0.036)), int(alto * 0.02))
-    f_n, f_b = font(fs), font(fs, True)
+    f_n, f_b, f_a = font(fs), font(fs, True), font(int(fs * 0.8))
     col_w = (ancho - m * 2) // cols
     y0 = m + int(alto * 0.17)
-    for i, (t, nombre) in enumerate(items):
+    for i, it in enumerate(items):
+        t, nombre, anio = (it + (None,))[:3]
         c, r = divmod(i, filas)
         x, y = m + c * col_w, y0 + r * int(fs * 1.3)
         activo = i == resaltar
         if activo:
-            d.rounded_rectangle([x - 8, y - 3, x + col_w - 28, y + fs + 5], radius=6, fill=(43, 93, 107))
-        maxc = int((col_w - fs * 3.6 - 28) / (fs * 0.52))
-        d.text((x, y), t, fill=(230, 233, 231) if activo else (127, 182, 194), font=f_b if activo else f_n)
-        d.text((x + int(fs * 3.4), y), nombre[:maxc], fill=(255, 255, 255) if activo else (200, 205, 202),
+            d.rounded_rectangle([x - 8, y - 3, x + col_w - 28, y + fs + 5], radius=6, fill=(43, 93, 107, 230))
+        maxc = int((col_w - fs * 3.6 - 28 - (fs * 2.6 if anio else 0)) / (fs * 0.52))
+        d.text((x, y), t, fill=(255, 255, 255) if activo else (127, 182, 194), font=f_b if activo else f_n)
+        nx = x + int(fs * 3.4)
+        d.text((nx, y), nombre[:maxc], fill=(255, 255, 255) if activo else (215, 220, 217),
                font=f_b if activo else f_n)
-    d.text((m, alto - m - int(alto * 0.03)), "Zapa-IA", fill=(90, 100, 96), font=font(int(alto * 0.024)))
+        if anio:
+            w = d.textlength(nombre[:maxc], font=f_b if activo else f_n)
+            d.text((nx + w + int(fs * 0.5), y + int(fs * 0.15)), str(anio),
+                   fill=(200, 210, 206) if activo else (150, 160, 156), font=f_a)
     img.save(out_png, "PNG")
 
 
-def video_compilado(mp3, titulo, subtitulo, posiciones, out_mp4, workdir):
-    """posiciones: [(segundo_inicio, nombre)] en orden. Genera el MP4."""
+def video_compilado(mp3, titulo, subtitulo, posiciones, out_mp4, workdir,
+                    imagenes_dir=None, visualizador=True, semilla=None):
+    """posiciones: [(segundo_inicio, nombre[, anio])] en orden. Genera el MP4.
+
+    imagenes_dir: carpeta con fotos; se elige una distinta por tramo (al azar con
+    semilla fija, así el mismo compilado da el mismo video). visualizador: banda
+    de onda al pie que se mueve con el audio (showwaves de ffmpeg).
+    """
+    import glob
     import os
+    import random
     import subprocess
     from pydub.utils import mediainfo
     total = float(mediainfo(mp3)["duration"])
-    items = [(_mmss_(t), n) for t, n in posiciones]
+    items = [(_mmss_(p[0]),) + tuple(p[1:3]) for p in posiciones]
+    fotos = []
+    if imagenes_dir:
+        fotos = sorted(f for f in glob.glob(os.path.join(imagenes_dir, "*"))
+                       if f.lower().endswith((".jpg", ".jpeg", ".png")))
+        random.Random(semilla if semilla is not None else titulo).shuffle(fotos)
     os.makedirs(workdir, exist_ok=True)
     lista = os.path.join(workdir, "cuadros.txt")
     with open(lista, "w", encoding="utf-8") as fh:
-        for i, (t, _) in enumerate(posiciones):
+        for i, p in enumerate(posiciones):
+            t = p[0]
             fin = posiciones[i + 1][0] if i + 1 < len(posiciones) else total
             png = os.path.join(workdir, f"cuadro_{i:03d}.png")
-            cuadro(titulo, subtitulo, items, i, png)
+            cuadro(titulo, subtitulo, items, i, png, fondo=fotos[i % len(fotos)] if fotos else None)
             fh.write(f"file '{os.path.abspath(png)}'\nduration {max(fin - t, 0.5):.3f}\n")
         fh.write(f"file '{os.path.abspath(png)}'\n")     # el concat exige repetir el último
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lista,
-                        "-i", mp3, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-tune", "stillimage",
-                        "-preset", "veryfast", "-r", "4", "-pix_fmt", "yuv420p", "-c:a", "copy",
-                        "-shortest", "-movflags", "+faststart", out_mp4], capture_output=True, text=True)
+    cmd = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lista, "-i", mp3]
+    if visualizador:
+        cmd += ["-filter_complex",
+                "[1:a]showwaves=s=1280x140:mode=cline:colors=0x7FB6C2:rate=24:scale=sqrt,"
+                "format=rgba,colorchannelmixer=aa=0.55[w];[0:v][w]overlay=0:575:shortest=1[v]",
+                "-map", "[v]", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast", "-crf", "27",
+                "-r", "24"]
+    else:
+        cmd += ["-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-tune", "stillimage",
+                "-preset", "veryfast", "-r", "4"]
+    cmd += ["-pix_fmt", "yuv420p", "-c:a", "copy", "-shortest", "-movflags", "+faststart", out_mp4]
+    r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip()[:400])
     return out_mp4
