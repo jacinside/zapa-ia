@@ -397,11 +397,14 @@ def cmd_compilado(a):
               "tim=timing, gro=groove, afi=afinación, ton=tonal_outlier, cre=creatividad, "
               "des=desarrollo, son=sonido. 'tramo' = ese tramo; 'toma' = el archivo entero.", ""]
     t0 = 0.0
-    _posiciones = []            # (segundo en el compilado, toma) para la carátula
+    _posiciones = []            # (segundo en el compilado, toma, año) para la carátula
+    from . import sync as sy
+    _fechas = sy.fechas_locales(con, [t[0] for t in tramos])
+    _anios = {r: f.year for r, f in _fechas.items()}
     for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio) in zip(tramos, usados):
         dur = fin - ini
         aj = f" x{ratio:.3f}" if abs(ratio - 1.0) > 1e-3 else ""
-        _posiciones.append((t0, toma))
+        _posiciones.append((t0, toma, _anios.get(ruta)))
         g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
         w = {k: float(g[k].median()) if len(g) and k in g else float("nan") for k in dims_v}
         w["score"] = float(g["score"].median()) if len(g) else sc_
@@ -424,7 +427,8 @@ def cmd_compilado(a):
         lineas.append(f"\nDuración total: {len(audio)/60000:.1f} min")
         # Carátula con la lista: es la "foto" que muestran Drive y el celular.
         try:
-            items = [(_mmss(t), toma.replace(".mp3", "")) for t, toma in _posiciones]
+            items = [(_mmss(t), toma.replace(".mp3", "") + (f"  ·  {anio}" if anio else ""))
+                     for t, toma, anio in _posiciones]
             png = str(Path(a.out).with_suffix(".png"))
             compilado.portada(f"{a.perfil.upper()} · {filtro.replace('_', ' ')}",
                               f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min · "
@@ -434,10 +438,13 @@ def cmd_compilado(a):
             # reproduce video con la lista y el tema actual resaltado.
             if not a.sin_video:
                 mp4 = str(Path(a.out).with_suffix(".mp4"))
+                pos_v = [(t, toma.replace(".mp3", ""), anio) for t, toma, anio in _posiciones]
                 compilado.video_compilado(
                     a.out, f"{a.perfil.upper()} · {filtro.replace('_', ' ')}",
-                    f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min", _posiciones, mp4,
-                    str(Path(a.out).with_suffix("")) + "_cuadros")
+                    f"Zapa-IA · Nebulosa · {len(audio)/60000:.0f} min", pos_v, mp4,
+                    str(Path(a.out).with_suffix("")) + "_cuadros",
+                    imagenes_dir=(a.imagenes if os.path.isdir(a.imagenes or "") else None),
+                    visualizador=not a.sin_visualizador, semilla=codigo)
                 print(f"  video -> {mp4}")
         except Exception as e:
             print(f"  (sin carátula/video: {e})")
@@ -739,31 +746,6 @@ def cmd_feedback(a):
         print(f"\n  CSV -> {a.out}")
 
 
-def cmd_player(a):
-    """Genera docs/player/lote_NNN.html con los clips del lote servidos desde Drive."""
-    import json
-    from . import player
-    lote_dir = Path(a.out_dir) / f"lote_{a.lote:03d}"
-    pares = player.leer_lote_txt(str(lote_dir / "lote.txt"))
-    ids_path = lote_dir / "drive_ids.json"
-    if not ids_path.exists():
-        dest = f"{_drive_salida()}player/lote_{a.lote:03d}"
-        print(f"Subiendo clips a {dest} ...")
-        subprocess.run(["rclone", "copy", str(lote_dir), dest, "--include", "par_*.mp3"],
-                       capture_output=True)
-        r = subprocess.run(["rclone", "lsjson", dest, "--files-only"], capture_output=True, text=True)
-        t = r.stdout
-        items = json.loads(t[t.find("["):]) if "[" in t else []
-        ids = {it["Name"]: it["ID"] for it in items if it["Name"].startswith("par_")}
-        ids_path.write_text(json.dumps(ids, indent=1), encoding="utf-8")
-    ids = json.loads(ids_path.read_text(encoding="utf-8"))
-    out = Path("docs/player") / f"lote_{a.lote:03d}.html"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(player.generar(a.lote, pares, ids), encoding="utf-8")
-    print(f"{out}: {len(pares)} pares. Después de pushear: "
-          f"https://jacinside.github.io/zapa-ia/player/lote_{a.lote:03d}.html")
-
-
 def main(argv=None):
     p = argparse.ArgumentParser(prog="zapaia", description="Ranking de tomas de ensayo")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -880,6 +862,10 @@ def main(argv=None):
                    help="time-stretch leve para que el tempo enganche con el tramo anterior")
     m.add_argument("--max-stretch", type=float, default=0.04,
                    help="ajuste máximo de tempo (0.04 = 4%%)")
+    m.add_argument("--imagenes", default="imagenes",
+                   help="carpeta con fotos para el fondo del video (una distinta por tramo)")
+    m.add_argument("--sin-visualizador", action="store_true",
+                   help="video estático (sin la onda que se mueve con la música)")
     m.add_argument("--sin-video", action="store_true",
                    help="no generar el MP4 con la lista (Drive no muestra la carátula del MP3)")
     m.add_argument("--solo-lista", action="store_true",
@@ -939,11 +925,6 @@ def main(argv=None):
                    help="instalar un LaunchAgent que corra sync --extraer al iniciar sesión y "
                         "cada N horas mientras la máquina esté prendida")
     s.set_defaults(func=cmd_sync)
-
-    pl = sub.add_parser("player", help="página para votar un lote desde el celular (GitHub Pages)")
-    pl.add_argument("--lote", type=int, required=True)
-    pl.add_argument("--out-dir", default="feedback")
-    pl.set_defaults(func=cmd_player)
 
     for sp in (r, v, m, c, f):
         sp.add_argument("--sort-by", default="score_med",
