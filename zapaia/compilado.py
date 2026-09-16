@@ -176,26 +176,36 @@ def _stretch(seg, rate):
 # ---------------------------------------------------------------------------
 
 def normalizar_tramo(seg, objetivo_dbfs=-19.0, techo_pico_dbfs=-1.0):
-    """Lleva el tramo a un RMS común sin pasar el techo de picos.
+    """Lleva el tramo a un nivel común SUBIENDO lo que está bajo sin saturar.
 
-    Medido antes de esto: 8-11 dB de diferencia entre tramos del mismo compilado
-    (grabaciones distintas). Un tramo ya comprimido al tope no se puede subir sin
-    saturar: se sube hasta donde el pico lo permita. Devuelve (seg, ganancia_db).
+    Medido antes: 8-11 dB de diferencia entre tramos del mismo compilado. Una
+    ganancia lineal no alcanza: los tramos con picos altos y cuerpo bajo (batería
+    en una sala) chocan con el techo a -21 dBFS. El compresor de pydub tampoco
+    (los transitorios pasan). `loudnorm` de ffmpeg (EBU R128 con true-peak)
+    resuelve las dos cosas: el tramo bajo queda en -19.1 con pico -1.0.
+    Devuelve (seg, ganancia_db_aprox).
     """
+    import os
+    import subprocess
+    import tempfile
     if seg.dBFS == float("-inf"):
         return seg, 0.0
-    ganancia = objetivo_dbfs - seg.dBFS
-    ganancia = min(ganancia, techo_pico_dbfs - seg.max_dBFS)
-    out = seg.apply_gain(ganancia)
-    # Lo que importa es SUBIR lo que está bajo. Si el techo de picos frenó la
-    # subida (picos altos con cuerpo bajo), un compresor suave achica los picos
-    # y deja levantar el resto. Solo se aplica a los tramos que lo necesitan.
-    if objetivo_dbfs - out.dBFS > 1.0:
-        comp = seg.compress_dynamic_range(threshold=-12.0, ratio=4.0, attack=5.0, release=80.0)
-        g2 = min(objetivo_dbfs - comp.dBFS, techo_pico_dbfs - comp.max_dBFS)
-        if comp.dBFS + g2 > out.dBFS + 0.3:
-            out, ganancia = comp.apply_gain(g2), float(g2)
-    return out, float(ganancia)
+    antes = seg.dBFS
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            src, dst = os.path.join(td, "in.wav"), os.path.join(td, "out.wav")
+            seg.export(src, format="wav")
+            r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-af",
+                                f"loudnorm=I={objetivo_dbfs}:TP={techo_pico_dbfs}:LRA=11",
+                                "-ar", str(seg.frame_rate), dst], capture_output=True, text=True)
+            if r.returncode == 0:
+                out = AudioSegment.from_file(dst)
+                return out, float(out.dBFS - antes)
+    except Exception:
+        pass
+    # Fallback: ganancia lineal con techo de picos.
+    ganancia = min(objetivo_dbfs - seg.dBFS, techo_pico_dbfs - seg.max_dBFS)
+    return seg.apply_gain(ganancia), float(ganancia)
 
 
 def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
