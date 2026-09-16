@@ -370,7 +370,7 @@ def video_compilado(mp3, titulo, subtitulo, posiciones, out_mp4, workdir,
     cmd = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lista, "-i", mp3]
     if visualizador:
         cmd += ["-filter_complex",
-                "[1:a]showwaves=s=1280x140:mode=cline:colors=0x7FB6C2:rate=24:scale=sqrt,"
+                "[1:a]showwaves=s=1280x140:mode=cline:colors=cadetblue:rate=24:scale=sqrt,"
                 "format=rgba,colorchannelmixer=aa=0.55[w];[0:v][w]overlay=0:575:shortest=1[v]",
                 "-map", "[v]", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast", "-crf", "27",
                 "-r", "24"]
