@@ -197,6 +197,9 @@ def etiqueta_filtro(d, desde=None, ultima_sesion=False, meses=None):
     if ultima_sesion and len(d):
         return "sesion-" + dia_local(d["_fecha"].max()).isoformat()
     if desde is not None and len(d):
-        base = f"{meses}meses" if meses else "desde"
-        return f"{base}-{desde.date().isoformat()}_a_{dia_local(d['_fecha'].max()).isoformat()}"
+        # Por MES, no por día: con la fecha exacta el nombre cambiaba cada día y
+        # Drive se llenaba de compilados casi iguales con nombres distintos.
+        if meses:
+            return f"{meses}meses-hasta-{dia_local(d['_fecha'].max()).strftime('%Y-%m')}"
+        return f"desde-{desde.date().isoformat()}"
     return "todo"
