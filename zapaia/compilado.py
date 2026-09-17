@@ -273,8 +273,15 @@ def construir(tramos, crossfade_s=3.0, fade_borde_s=2.0, snap=True,
 # el ícono genérico. Se genera desde la lista ya armada, así que no cuesta nada.
 # ---------------------------------------------------------------------------
 
-def portada(titulo, subtitulo, items, out_png, lado=1400):
-    """items: lista de (tiempo_mmss, nombre). Escribe un PNG cuadrado."""
+def portada(titulo, subtitulo, items, out_png, lado=1400, fondo=None, solo_foto=False):
+    """items: lista de (tiempo_mmss, nombre). Escribe un PNG cuadrado.
+
+    `fondo`: foto de la banda detrás (recortada, desenfocada, oscurecida).
+    `solo_foto`: sin la lista, solo la foto con el título — la carátula que se ve
+    en el auto es chica y la lista no se lee ahí.
+    Los reproductores de auto (CarPlay, Android Auto, Bluetooth) muestran UNA
+    imagen fija por archivo: no hay carátula animada ni GIF que sirva.
+    """
     from PIL import Image, ImageDraw, ImageFont
     fuentes = ["/System/Library/Fonts/Supplemental/Arial Bold.ttf",
                "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -286,12 +293,15 @@ def portada(titulo, subtitulo, items, out_png, lado=1400):
             except Exception:
                 continue
         return ImageFont.load_default()
-    img = Image.new("RGB", (lado, lado), (21, 24, 26))
-    d = ImageDraw.Draw(img)
+    img = _fondo(fondo, lado, lado, oscurecer=0.45, blur=4) if fondo else Image.new("RGB", (lado, lado), (21, 24, 26))
+    d = ImageDraw.Draw(img, "RGBA")
     m = int(lado * 0.06)
     d.rectangle([m, m, m + int(lado * 0.02), m + int(lado * 0.11)], fill=(127, 182, 194))
     d.text((m + int(lado * 0.045), m), titulo, fill=(230, 233, 231), font=font(int(lado * 0.055), True))
     d.text((m + int(lado * 0.045), m + int(lado * 0.07)), subtitulo, fill=(167, 176, 171), font=font(int(lado * 0.03)))
+    if solo_foto:
+        img.save(out_png, "PNG")
+        return out_png
     # Tamaño de letra según cuántas líneas hay que meter.
     n = max(len(items), 1)
     alto_disp = lado - m * 2 - int(lado * 0.16) - int(lado * 0.05)   # deja lugar al pie

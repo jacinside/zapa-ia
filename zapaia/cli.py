@@ -436,9 +436,17 @@ def cmd_compilado(a):
             items = [(_mmss(t), toma.replace(".mp3", "") + (f"  ·  {anio}" if anio else ""))
                      for t, toma, anio in _posiciones]
             png = str(Path(a.out).with_suffix(".png"))
+            # Una foto distinta por compilado, elegida con semilla fija (el mismo
+            # compilado da siempre la misma). En el auto se ve la foto; la lista
+            # a ese tamaño no se lee.
+            import glob as _glob, random as _rnd
+            _fotos = sorted(f for f in _glob.glob(os.path.join(a.imagenes or "", "*"))
+                            if f.lower().endswith((".jpg", ".jpeg", ".png"))) if a.imagenes else []
+            _foto = _rnd.Random(codigo).choice(_fotos) if _fotos else None
             compilado.portada(f"{a.perfil.upper()} · {filtro.replace('_', ' ')}",
                               f"Zapa-IA · {_cfg.banda()['nombre']} · {len(audio)/60000:.0f} min · "
-                              f"{'dinámico' if a.dinamico else 'fijo'}", items, png)
+                              f"{'dinámico' if a.dinamico else 'fijo'}", items, png,
+                              fondo=_foto, solo_foto=a.caratula == "foto")
             compilado.embeber_portada(a.out, png)
             # Versión MP4: la app de Drive no muestra la carátula del MP3, pero
             # reproduce video con la lista y el tema actual resaltado.
@@ -904,6 +912,9 @@ def main(argv=None):
     m.add_argument("--nivel", type=float, default=-16.0,
                    help="tope del nivel objetivo (dBFS). El objetivo real es el tramo más fuerte "
                         "del compilado; solo se SUBEN los que están por debajo, nunca se baja")
+    m.add_argument("--caratula", choices=["foto", "lista"], default="foto",
+                   help="carátula del MP3: 'foto' (foto de la banda + título, se lee en el auto) "
+                        "o 'lista' (los temas; ilegible en pantallas chicas)")
     m.add_argument("--sin-video", action="store_true",
                    help="no generar el MP4 con la lista (Drive no muestra la carátula del MP3)")
     m.add_argument("--solo-lista", action="store_true",
