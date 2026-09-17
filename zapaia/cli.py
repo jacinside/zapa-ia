@@ -394,6 +394,10 @@ def cmd_compilado(a):
     # ventana) y las de archivo desde la tabla agregada. Todo en percentil 0-1 del
     # corpus completo: 0.90 = mejor que el 90% de las ventanas de todo el archivo.
     dfile = d.set_index("Ruta")
+    # id de Drive de cada toma ORIGINAL: permite abrir la zapada completa desde
+    # la app. Sale del manifest de sync; las tomas que nunca pasaron por Drive
+    # quedan sin id y la app las busca por nombre.
+    _drive_ids = {lp: did for lp, did in con.execute("SELECT local_path, drive_id FROM drive_files")}
     dims_v = ["timing", "groove", "afinacion", "tonal_outlier", "sonido"]
     dims_f = ["interes", "creatividad", "desarrollo", "ejecucion"]
     lineas = [f"COMPILADO {codigo}", params, "",
@@ -481,6 +485,7 @@ def cmd_compilado(a):
         g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
         manifest["tramos"].append({
             "ganancia_db": round(gan, 1),
+            "drive_id": _drive_ids.get(ruta),
             "pos_s": round(tt, 2), "dur_s": round(dur, 2), "toma": toma,
             "origen_ini_s": round(ini, 2), "origen_fin_s": round(fin, 2),
             "tempo": None if tempo != tempo else round(tempo, 1), "anio": _anios.get(ruta),
