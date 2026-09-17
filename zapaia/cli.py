@@ -190,8 +190,11 @@ def cmd_eval(a):
     d = d.sort_values(a.sort_by, ascending=False).reset_index(drop=True)
     d["pct"] = 100.0 * (1.0 - (d.index + 1) / len(d))
 
+    refs = a.refs or next((f for f in ("refs.local.txt", "refs.txt") if os.path.exists(f)), None)
+    if not refs:
+        sys.exit("No hay ground truth: creá refs.local.txt (ver refs.example.txt).")
     pos, neg = [], []
-    for line in open(a.refs, encoding="utf-8"):
+    for line in open(refs, encoding="utf-8"):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
@@ -204,7 +207,7 @@ def cmd_eval(a):
         return d[d["Toma"].str.lower().str.contains(
             name.lower().replace(".mp3", ""), regex=False)]
 
-    print(f"\nGround truth: {len(pos)} positivos, {len(neg)} negativos "
+    print(f"\nGround truth [{refs}]: {len(pos)} positivos, {len(neg)} negativos "
           f"| {len(d)} tomas rankeadas por '{a.sort_by}'\n")
     idx = {"pos": [], "neg": []}
     for etiqueta, nombres in (("pos", pos), ("neg", neg)):
@@ -909,7 +912,9 @@ def main(argv=None):
 
     v = sub.add_parser("eval", help="medir el ranking contra refs.txt")
     common(v); weights(v)
-    v.add_argument("--refs", default="refs.txt")
+    # refs.local.txt (gitignored) tiene los nombres reales; refs.txt es el fallback.
+    v.add_argument("--refs", default=None,
+                   help="archivo de ground truth (default: refs.local.txt, si no refs.txt)")
     v.set_defaults(func=cmd_eval)
 
     c = sub.add_parser("comparar", help="pares A/B para escuchar y decir cuál rescatarías")

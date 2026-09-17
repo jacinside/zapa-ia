@@ -1,0 +1,15 @@
+# GROUND TRUTH — tomas con juicio humano registrado.
+#
+# Este archivo es un EJEMPLO. El real (refs.local.txt) no se versiona: contiene
+# nombres de tomas y juicios sobre el material de la banda, y el repo es público.
+#
+# Formato: un nombre de archivo por línea. Prefijo '-' = toma MALA (negativo).
+# '#' = comentario. Se usa con:  python -m zapaia eval <corpus>
+#
+# Sin esto, ajustar pesos es adivinar. Los NEGATIVOS valen tanto como los
+# positivos: sin ellos no se puede calcular AUC.
+
+una toma que sabés que es buena.mp3
+otra buena.mp3
+
+-una toma que descartarías.mp3

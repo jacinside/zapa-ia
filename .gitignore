@@ -43,3 +43,7 @@ compilado_*.json
 # credenciales de Google: NUNCA acá
 client_secret*.json
 *.apps.googleusercontent.com.json
+
+# ground truth con nombres de tomas y juicios: NUNCA al repo público
+refs.txt
+refs.local.txt
