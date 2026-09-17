@@ -47,3 +47,7 @@ client_secret*.json
 # ground truth con nombres de tomas y juicios: NUNCA al repo público
 refs.txt
 refs.local.txt
+
+# documentación con nombres de tomas y juicios: fuera del repo público
+docs/
+CLAUDE.md
