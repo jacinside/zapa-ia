@@ -9,6 +9,7 @@ Ver docs/review-2026-09-12.md §6 P7.
 """
 import datetime as dt
 import json
+import re
 import os
 import subprocess
 import time
@@ -43,13 +44,21 @@ def listar(origen=None):
     return items
 
 
+# Exportaciones de grabador multipista ("11-(3) kick-221107_2042.mp3"): una pista
+# suelta, no una zapada, y la misma sesión repetida en 8 archivos. Ni se bajan.
+ES_STEM = re.compile(r"^\d{2}-.*-\d{6}_\d{4}\.mp3$", re.I)
+
+
 def filtrar(items, desde, excluir=EXCLUIR_DEFAULT):
-    """Por fecha y por subcarpeta excluida (prefijo del Path relativo)."""
+    """Por fecha, por subcarpeta excluida (prefijo del Path relativo) y por
+    nombre de pista de multipista."""
     out = []
     for it in items:
         if it["fecha"] < desde:
             continue
         if any(it["Path"].startswith(ex.rstrip("/") + "/") or it["Path"] == ex for ex in excluir):
+            continue
+        if ES_STEM.match(it["Name"]):
             continue
         out.append(it)
     return out

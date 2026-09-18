@@ -1,6 +1,7 @@
 """CLI: extract / rank / diag / dupes / eval."""
 import argparse
 import os
+import re
 import random
 import subprocess
 import sys
@@ -32,8 +33,20 @@ def _process(task):
         return path, 0.0, [], None, "error", f"{type(e).__name__}: {e}", time.time() - t0
 
 
-def _mp3s(root):
-    return sorted(str(p.resolve()) for p in Path(root).rglob("*.mp3"))
+# Exportaciones de grabador multipista: "NN-nombre-AAMMDD_HHMM.mp3" (07-(6) tom 1,
+# 11-(3) kick, 15-CONS...). NO son zapadas: son UNA pista suelta, y la misma
+# sesión aparece repetida en 8 archivos. Además distorsionan el score — una pista
+# sola de bombo tiene pulso perfecto, así que pulse_clarity y beat_strength se van
+# al techo y groove la premia — y sus ventanas corren la normalización por
+# percentil de TODO el corpus. El 18/9 eran 25 archivos: 19% de las horas.
+ES_STEM = re.compile(r"^\d{2}-.*-\d{6}_\d{4}\.mp3$", re.I)
+
+
+def _mp3s(root, con_stems=False):
+    todos = sorted(str(p.resolve()) for p in Path(root).rglob("*.mp3"))
+    if con_stems:
+        return todos
+    return [f for f in todos if not ES_STEM.match(os.path.basename(f))]
 
 
 def cmd_extract(a):
