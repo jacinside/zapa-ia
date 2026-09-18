@@ -164,17 +164,20 @@ def dia_local(fecha):
     return fecha.astimezone().date()
 
 
-def filtrar_por_fecha(d, fechas, desde=None, ultima_sesion=False):
+def filtrar_por_fecha(d, fechas, desde=None, ultima_sesion=False, hasta=None):
     """Filtra el DataFrame de archivos (columna Ruta) por fecha.
 
     ultima_sesion: todos los archivos del DÍA más reciente con subidas de MP3.
     "La última zapada" son los que se subieron ese día, sin importar la hora.
+    hasta: tope EXCLUSIVO, para poder aislar un rango cerrado (un año, con --anio).
     """
     d = d.copy()
     d["_fecha"] = d["Ruta"].map(fechas)
     d = d[d["_fecha"].notna()]
     if desde is not None:
         d = d[d["_fecha"] >= desde]
+    if hasta is not None:
+        d = d[d["_fecha"] < hasta]
     if ultima_sesion and len(d):
         # "Última zapada" = el archivo más reciente y todos los que se subieron
         # en cadena con él: cada uno a menos de `gap_h` horas del anterior.
@@ -192,8 +195,10 @@ def filtrar_por_fecha(d, fechas, desde=None, ultima_sesion=False):
     return d
 
 
-def etiqueta_filtro(d, desde=None, ultima_sesion=False, meses=None):
+def etiqueta_filtro(d, desde=None, ultima_sesion=False, meses=None, anio=None):
     """Código corto para el nombre del archivo de salida: qué rango se usó."""
+    if anio:
+        return str(anio)
     if ultima_sesion and len(d):
         return "sesion-" + dia_local(d["_fecha"].max()).isoformat()
     if desde is not None and len(d):

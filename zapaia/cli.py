@@ -381,7 +381,11 @@ def cmd_compilado(a):
 
     # El filtro y los parámetros quedan en el nombre, en un .txt al lado y en los
     # tags ID3: hay que poder saber qué es cada compilado sin volver a la terminal.
-    filtro = getattr(a, "_filtro", "todo")
+    # --etiqueta renombra el compilado ENTERO, no sólo el archivo: el `codigo`
+    # es la clave con la que el player asocia votos y notas (campo "compilado"
+    # del manifest). Rehacer un compilado con otro nombre de archivo pero el
+    # mismo codigo mezclaría sus votos con los del anterior.
+    filtro = getattr(a, "etiqueta", None) or getattr(a, "_filtro", "todo")
     codigo = f"{filtro}_{a.perfil}_{'dinamico' if a.dinamico else 'fijo'}"
     if a.out == "compilado.mp3":
         a.out = f"compilado_{codigo}.mp3"
@@ -497,8 +501,18 @@ def cmd_compilado(a):
             **{k: round(float(g[k].median()), 3) for k in dims_v if len(g) and k in g},
         })
         tt += dur - crossfade
-    Path(a.out).with_suffix(".json").write_text(_json.dumps(manifest, ensure_ascii=False, indent=1),
-                                                 encoding="utf-8")
+    # --solo-lista NO escribe manifest. Sus posiciones son NOMINALES (ver el
+    # `usados` falso de más arriba): no tienen pegado a beat, ni el margen de
+    # crossfade, ni el estiramiento de --ajustar-tempo, ni loudnorm. Escribirlas
+    # pisaba el manifest correcto de un MP3 ya renderizado y los capítulos
+    # quedaban corridos, cada vez más a medida que avanzaba el compilado
+    # (el 17/9 dejó 21 s de desfase al final de todo_balance_dinamico).
+    if a.solo_lista:
+        print("  (--solo-lista: no se escribe .json; las posiciones sólo se "
+              "conocen renderizando el audio)")
+    else:
+        Path(a.out).with_suffix(".json").write_text(_json.dumps(manifest, ensure_ascii=False, indent=1),
+                                                    encoding="utf-8")
     if audio is not None:
         print(f"\nDuración total: {len(audio)/60000:.1f} min  ->  {a.out}  (+ .txt con la lista)")
     else:
@@ -519,17 +533,28 @@ def _drive_feedback():
 def _filtrar_fechas(a, con, d):
     """Aplica --meses / --desde / --ultima-sesion al DataFrame de archivos, si se pidieron."""
     from . import sync as sy
-    desde = sy.desde_argumentos(getattr(a, "meses", None), getattr(a, "desde", None))
+    import datetime as _dt
+    anio = getattr(a, "anio", None)
+    hasta = None
+    if anio:
+        # Un año cerrado: [1-ene, 1-ene del siguiente). Pisa --desde/--hasta a
+        # propósito, es azúcar para el caso de lejos más común.
+        desde = _dt.datetime(anio, 1, 1, tzinfo=_dt.timezone.utc)
+        hasta = _dt.datetime(anio + 1, 1, 1, tzinfo=_dt.timezone.utc)
+    else:
+        desde = sy.desde_argumentos(getattr(a, "meses", None), getattr(a, "desde", None))
+        if getattr(a, "hasta", None):
+            hasta = _dt.datetime.fromisoformat(a.hasta).replace(tzinfo=_dt.timezone.utc)
     ultima = getattr(a, "ultima_sesion", False)
-    if desde is None and not ultima:
+    if desde is None and hasta is None and not ultima:
         return d
     fechas = sy.fechas_locales(con, list(d["Ruta"]))
     antes = len(d)
-    d = sy.filtrar_por_fecha(d, fechas, desde=desde, ultima_sesion=ultima)
+    d = sy.filtrar_por_fecha(d, fechas, desde=desde, ultima_sesion=ultima, hasta=hasta)
     if d.empty:
         sys.exit("Ningún archivo en ese rango de fechas. ¿Corriste 'zapaia sync'?")
     a._filtro = sy.etiqueta_filtro(d, desde=desde, ultima_sesion=ultima,
-                                   meses=getattr(a, "meses", None))
+                                   meses=getattr(a, "meses", None), anio=anio)
     rango = f"{sy.dia_local(d['_fecha'].min())} a {sy.dia_local(d['_fecha'].max())}"
     print(f"Filtro de fechas [{a._filtro}]: {antes} -> {len(d)} tomas ({rango})")
     return d
@@ -824,6 +849,15 @@ def main(argv=None):
         sp.add_argument("--meses", type=int, default=None,
                         help="solo tomas de los últimos N meses (fecha de Drive o mtime)")
         sp.add_argument("--desde", default=None, help="solo tomas desde AAAA-MM-DD")
+        sp.add_argument("--hasta", default=None,
+                        help="tope: solo tomas ANTERIORES a AAAA-MM-DD (exclusivo)")
+        sp.add_argument("--etiqueta", default=None,
+                        help="nombre del compilado en vez del filtro automático "
+                             "(ej. todo-2026-09). Cambia archivo, tags y la clave "
+                             "'compilado' del manifest, que es con la que se asocian los votos")
+        sp.add_argument("--anio", type=int, default=None,
+                        help="solo ese año calendario; equivale a --desde AAAA-01-01 "
+                             "--hasta AAAA+1-01-01 y nombra la salida con el año")
         sp.add_argument("--ultima-sesion", action="store_true",
                         help="solo la última zapada: los archivos a <36 h del más reciente")
         sp.add_argument("--perfil", choices=list(scoring.PERFILES), default="balance",
