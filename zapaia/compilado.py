@@ -53,13 +53,19 @@ def mejor_tramo(g, n_win, win_s, col="score", hop_s=None):
     return float(g.loc[i - n_win + 1, "start"]), float(g.loc[i, "start"] + win_s)
 
 
-def tramos_dinamicos(g, win_s, umbral, min_win=2, max_win=10, max_tramos=2,
+def tramos_dinamicos(g, win_s, umbral, min_win=2, max_win=0, max_tramos=2,
                      col="score", hop_s=None, max_silencio=0.08):
     """Rachas contiguas de ventanas con `col >= umbral` y poco silencio.
 
     Devuelve lista de (inicio, fin, score_medio, tempo_mediano), de mejor a peor,
-    a lo sumo `max_tramos`. Una racha más larga que `max_win` se recorta a su
-    mejor sub-tirada de `max_win` ventanas.
+    a lo sumo `max_tramos`. Con `max_win > 0`, una racha más larga se recorta a
+    su mejor sub-tirada; con 0 (el default) no se recorta.
+
+    Por qué sin tope: una racha es larga porque la toma SOSTUVO el score muchas
+    ventanas seguidas, así que las largas son las mejores (Spearman largo-vs-score
+    +0.315 sobre 458 tramos). Con el viejo tope de 10 ventanas, el 5% de los
+    tramos se cortaba a los 5 minutos exactos — un pico artificial en el
+    histograma, y justo en el mejor momento de la toma.
 
     `max_silencio`: una ventana con más de esa fracción de silencio (split a
     -30 dB del pico) corta la racha. El score solo no lo ve: una pausa de 3 s en
@@ -83,7 +89,7 @@ def tramos_dinamicos(g, win_s, umbral, min_win=2, max_win=10, max_tramos=2,
 
     out = []
     for i, j in rachas:
-        if j - i + 1 > max_win:
+        if max_win and j - i + 1 > max_win:
             sub = g.loc[i:j, col].rolling(max_win).mean()
             k = int(sub.idxmax())
             i, j = k - max_win + 1, k

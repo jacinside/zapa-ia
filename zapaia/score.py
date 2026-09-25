@@ -298,10 +298,33 @@ def aggregate_files(df_win, files, best_q=0.95, shrink_k=4.0, modo="mixto",
     d["ejecucion"] = _combo(d, pesos, DIMS_EJECUCION)
     d["interes"] = _combo(d, pesos, DIMS_INTERES)
     d["balance"] = _combo(d, pesos, DIMS_BALANCE)
-    # gems: interés alto que el ranking de ejecución no habría mostrado. A
-    # ejecución 0 vale el interés completo, a ejecución 1 la mitad. Heurística
-    # hasta tener feedback humano; ver review §2.
-    d["gems"] = d["interes"] * (1.0 - 0.5 * d["ejecucion"])
+    # gems: interés alto que el ranking de ejecución no habría mostrado.
+    #
+    # ANTES era `interes * (1 - 0.5*ejecucion)`: una penalización suave que NO
+    # funcionaba. Ese multiplicador va de 0.5 a 1 (como mucho divide por dos)
+    # mientras `interes` va de 0 a 1 y manda en el orden, así que gems terminaba
+    # siendo ideas con ruido. Medido el 25/9 sobre los 27 compilados anuales:
+    # 74 tomas compartidas con ideas, y la ejecución mediana de lo elegido daba
+    # 0.561 contra 0.556 de ideas — o sea LEVEMENTE MÁS ALTA, cuando el perfil
+    # promete "ejecución baja o media". En 2019, con 318 tomas elegibles,
+    # coincidían 7 de 10: no era falta de material, era la fórmula.
+    #
+    # Ahora la penalización va de 0 a 1 en vez de 0.5 a 1, así que muerde.
+    # Medido sobre el top-16 del corpus (25/9):
+    #                          ejecucion  interes  solapa con ideas
+    #   interes*(1-0.5*ej)       0.443     0.736       9 de 16
+    #   filtro por mediana       0.467     0.729       6 de 16
+    #   interes*(1-ej)           0.394     0.715       3 de 16   <- esta
+    #   (ideas puro)             0.518     0.750          -
+    #
+    # Se descartó el filtro duro (sólo la mitad peor tocada) porque en el borde
+    # es arbitrario: "mutant zap" quedaba afuera por 0.0014 de diferencia con la
+    # mediana. Una penalización continua no tiene ese acantilado.
+    #
+    # OJO: la diferencia se diluye después. El score de archivo pesa 0.8 y el de
+    # ventana 0.2, y encima vienen shrinkage, dedupe, --max-por-tema y
+    # --diversidad. Por eso conviene partir de una separación grande.
+    d["gems"] = d["interes"] * (1.0 - d["ejecucion"])
 
     base = {"balance": d["balance"], "performances": d["ejecucion"],
             "ideas": d["interes"], "gems": d["gems"]}[perfil]

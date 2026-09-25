@@ -331,6 +331,26 @@ def cmd_compilado(a):
             tramos.append((r["Ruta"], ini, fin, r["Toma"], r.get("tempo", float("nan")),
                            float(r[a.sort_by])))
 
+    # El tope de duración se aplica ANTES de ordenar, y por SCORE.
+    #
+    # Antes se cortaba después de encadenar por tempo, así que lo que se perdía
+    # era lo que quedaba último en esa cadena — o sea, por tempo y no por
+    # calidad. El compilado no eran "los mejores 30 minutos" sino "los 30
+    # minutos de tempo más lento entre lo seleccionado". Detectado el 25/9:
+    # "apolo kanky" estaba 15 de 318 en su año y no entraba a ningún compilado.
+    #
+    # Ojo con los tramos largos: son largos porque la toma sostuvo un score alto
+    # muchas ventanas seguidas, o sea que son los MEJORES. Cortando por score se
+    # ganan su lugar en vez de que los descarte el reloj.
+    if a.duracion_max:
+        acum, corte = 0.0, []
+        for t in sorted(tramos, key=lambda t: -t[5]):
+            if acum >= a.duracion_max * 60:
+                break
+            corte.append(t)
+            acum += t[2] - t[1]
+        tramos = corte
+
     if a.orden == "tempo":
         # Ordenar por tempo hace que los empalmes no salten de 90 a 170 BPM, y deja
         # juntos los tramos de una misma toma (mismo tempo -> enganchan solos).
@@ -362,15 +382,6 @@ def cmd_compilado(a):
         tramos = orden
     else:
         tramos.sort(key=lambda t: -t[5])
-
-    if a.duracion_max:
-        acum, corte = 0.0, []
-        for t in tramos:
-            if acum >= a.duracion_max * 60:
-                break
-            corte.append(t)
-            acum += t[2] - t[1]
-        tramos = corte
 
     crossfade = a.crossfade if a.crossfade is not None else (1.0 if a.dinamico else 3.0)
     modo_txt = (f"dinámico (umbral q{a.umbral_q}, {a.seg_win}-{a.max_seg_win} ventanas, "
@@ -499,11 +510,22 @@ def cmd_compilado(a):
                 # API; sin ella la app recibe 404 y no muestra fotos.
                 "imagenes_resource_key": _img.get("resource_key"),
                 "compilado": codigo, "perfil": a.perfil, "filtro": filtro, "params": params,
+                # Distribución del score de VENTANA en todo el corpus para ESTE perfil.
+                # Sin esto un score suelto no se puede leer: en 'gems' el máximo del
+                # corpus es ~0.59 (la fórmula es interes*(1-0.5*ejecucion), un
+                # producto que nunca llega alto), así que un 0.60 es el techo y no
+                # "regular". Permite mostrar "top X%" en vez de un número pelado.
+                "score_dist": {k: round(float(dfw["score"].quantile(q)), 4)
+                               for k, q in [("p10", .10), ("p25", .25), ("p50", .50),
+                                            ("p75", .75), ("p90", .90), ("p99", .99)]} | {
+                               "max": round(float(dfw["score"].max()), 4),
+                               "min": round(float(dfw["score"].min()), 4)},
                 "fver": __import__("zapaia").FEATURE_VERSION, "tramos": []}
     tt = 0.0
     for (ruta, _, _, toma, _, sc_), (_, ini, fin, tempo, ratio, gan) in zip(tramos, usados):
         dur = fin - ini
         g = dfw[(dfw["path"] == ruta) & (dfw["start"] >= ini - 1) & (dfw["start"] < fin - 1)]
+        fr = dfile.loc[ruta] if ruta in dfile.index else None
         manifest["tramos"].append({
             "ganancia_db": round(gan, 1),
             "drive_id": _drive_ids.get(ruta),
@@ -512,6 +534,11 @@ def cmd_compilado(a):
             "tempo": None if tempo != tempo else round(tempo, 1), "anio": _anios.get(ruta),
             "score": round(float(g["score"].median()), 3) if len(g) else None,
             **{k: round(float(g[k].median()), 3) for k in dims_v if len(g) and k in g},
+            # Dimensiones de ARCHIVO (desarrollo, creatividad y los composites):
+            # no se pueden calcular sobre 90 s, así que salen de la fila del
+            # archivo entero. Iban sólo al .txt; el player las muestra.
+            **{k: round(float(fr[k]), 3) for k in dims_f
+               if fr is not None and k in fr and fr[k] == fr[k]},
         })
         tt += dur - crossfade
     # --solo-lista NO escribe manifest. Sus posiciones son NOMINALES (ver el
@@ -840,6 +867,12 @@ def main(argv=None):
 
     def common(sp):
         sp.add_argument("root")
+        # --banda elige QUÉ config de zapaia_local.json usar (carpetas de Drive,
+        # salida, fotos). El `root` posicional es sólo el corpus local: sin esto
+        # había que acordarse de exportar ZAPAIA_BANDA, y equivocarse significa
+        # procesar el corpus de una banda contra las carpetas de otra.
+        sp.add_argument("--banda", default=None,
+                        help="clave de banda en zapaia_local.json (default: banda_default)")
         sp.add_argument("--db", default=DEFAULTS["db"])
         sp.add_argument("--sr", type=int, default=DEFAULTS["sr"])
         sp.add_argument("--win", type=float, default=DEFAULTS["win"])
@@ -947,8 +980,14 @@ def main(argv=None):
                         "sobre el umbral; varios por toma")
     m.add_argument("--umbral-q", type=float, default=0.60,
                    help="cuantil del score de ventana que define 'racha buena' (dinámico)")
-    m.add_argument("--max-seg-win", type=int, default=10,
-                   help="tope de ventanas por tramo (10 = 5 min) en modo dinámico")
+    # Sin tope por default. Un tramo es largo porque la toma SOSTUVO un score
+    # alto muchas ventanas seguidas, o sea que los largos son los mejores:
+    # medido sobre 458 tramos publicados, Spearman largo-vs-score = +0.315 y el
+    # cuartil más largo puntúa 0.650 contra 0.609 del más corto. Con el viejo
+    # tope de 10 ventanas, 22 tramos (5%) se cortaban justo en lo mejor — se veía
+    # como un pico artificial en el histograma, exacto sobre los 5 minutos.
+    m.add_argument("--max-seg-win", type=int, default=0,
+                   help="tope de ventanas por tramo en modo dinámico (0 = sin tope)")
     m.add_argument("--tramos-por-toma", type=int, default=2)
     m.add_argument("--max-silencio", type=float, default=0.08,
                    help="una ventana con más de esta fracción de silencio corta la racha "
@@ -1041,4 +1080,8 @@ def main(argv=None):
                         help="dimensión o composite por el que ordenar el ranking")
 
     a = p.parse_args(argv)
+    # Se resuelve por entorno para que llegue a config.banda() sin tener que
+    # pasarla por cada llamada del pipeline.
+    if getattr(a, "banda", None):
+        os.environ["ZAPAIA_BANDA"] = a.banda
     a.func(a)
