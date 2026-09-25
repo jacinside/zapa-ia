@@ -65,6 +65,8 @@ def main():
             cache[perfil] = dataframes(args.corpus, perfil)
         _, dfw, d = cache[perfil]
         dfile = d.set_index("Ruta")
+        from zapaia import sync as _sy
+        _fechas = _sy.fechas_locales(cache[perfil][0], list(d["Ruta"]))
         # toma -> ruta: los nombres de archivo son únicos en este corpus (se
         # verifica abajo); si alguno se repite, se salta para no adivinar.
         por_toma = {}
@@ -86,6 +88,9 @@ def main():
             t["score"] = round(float(g["score"].median()), 3)
             for k in DIMS_V:
                 if k in g: t[k] = round(float(g[k].median()), 3)
+            if not t.get("fecha"):
+                f = _fechas.get(ruta)
+                if f is not None: t["fecha"] = f.date().isoformat()
             fr = dfile.loc[ruta] if ruta in dfile.index else None
             if fr is not None:
                 for k in DIMS_F:

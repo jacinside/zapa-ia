@@ -532,6 +532,9 @@ def cmd_compilado(a):
             "pos_s": round(tt, 2), "dur_s": round(dur, 2), "toma": toma,
             "origen_ini_s": round(ini, 2), "origen_fin_s": round(fin, 2),
             "tempo": None if tempo != tempo else round(tempo, 1), "anio": _anios.get(ruta),
+            # Fecha completa además del año: es la de subida a Drive, que es lo
+            # más cercano a "cuándo se tocó" que tenemos (ver fechas_locales).
+            "fecha": (_fechas.get(ruta).date().isoformat() if _fechas.get(ruta) else None),
             "score": round(float(g["score"].median()), 3) if len(g) else None,
             **{k: round(float(g[k].median()), 3) for k in dims_v if len(g) and k in g},
             # Dimensiones de ARCHIVO (desarrollo, creatividad y los composites):
