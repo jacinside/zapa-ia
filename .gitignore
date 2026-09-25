@@ -51,3 +51,6 @@ refs.local.txt
 # documentación con nombres de tomas y juicios: fuera del repo público
 docs/
 CLAUDE.md
+
+# Salidas de compilados, una carpeta por banda (audio, nunca se versiona)
+salidas/
