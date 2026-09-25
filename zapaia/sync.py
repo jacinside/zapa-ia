@@ -60,6 +60,11 @@ def filtrar(items, desde, excluir=EXCLUIR_DEFAULT):
             continue
         if ES_STEM.match(it["Name"]):
             continue
+        # "._algo.mp3": resource forks que macOS crea al copiar a un disco que no
+        # es HFS. Pesan 0 bytes y no son audio; en el corpus de ombu eran 33 de
+        # 349 y todos daban CouldntDecodeError.
+        if it["Name"].startswith("._"):
+            continue
         out.append(it)
     return out
 

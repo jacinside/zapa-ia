@@ -46,7 +46,10 @@ def _mp3s(root, con_stems=False):
     todos = sorted(str(p.resolve()) for p in Path(root).rglob("*.mp3"))
     if con_stems:
         return todos
-    return [f for f in todos if not ES_STEM.match(os.path.basename(f))]
+    # "._algo.mp3" son resource forks de macOS (0 bytes, no son audio).
+    return [f for f in todos
+            if not ES_STEM.match(os.path.basename(f))
+            and not os.path.basename(f).startswith("._")]
 
 
 def cmd_extract(a):
