@@ -333,6 +333,12 @@ def cmd_compilado(a):
         if not tramos:
             sys.exit("Ninguna toma tiene una racha sobre el umbral. Bajá --umbral-q.")
 
+    else:
+        for _, r in d.iterrows():
+            g = dfw[dfw["path"] == r["Ruta"]]
+            ini, fin = compilado.mejor_tramo(g, a.seg_win, a.win, col=col, hop_s=a.hop)
+            tramos.append((r["Ruta"], ini, fin, r["Toma"], r.get("tempo", float("nan")),
+                           float(r[a.sort_by])))
     # Los perfiles de un mismo período se generaban sin saber uno del otro, así que
     # cuando ideas y balance coincidían en una toma elegían EL MISMO pedazo: entre
     # los 12 compilados de ombu había 217 tramos idénticos repetidos. Con --evitar,
@@ -367,12 +373,6 @@ def cmd_compilado(a):
               f"{antes} -> {len(tramos)} tramos")
         if not tramos:
             sys.exit("Todos los tramos ya estaban usados. Sacá --evitar o cambiá el período.")
-    else:
-        for _, r in d.iterrows():
-            g = dfw[dfw["path"] == r["Ruta"]]
-            ini, fin = compilado.mejor_tramo(g, a.seg_win, a.win, col=col, hop_s=a.hop)
-            tramos.append((r["Ruta"], ini, fin, r["Toma"], r.get("tempo", float("nan")),
-                           float(r[a.sort_by])))
 
     # El tope de duración se aplica ANTES de ordenar, y por SCORE.
     #
