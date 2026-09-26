@@ -102,7 +102,13 @@ def main():
 
             cands = idx.get(toma, [])
             mismo = [c for c in cands if c[0] == comp]
-            otros = [c for c in cands if c[0] != comp and c[0] not in regenerados]
+            # OJO: acá se excluían los compilados regenerados, con la idea de no
+            # usar índices viejos. Pero `idx` se arma con los nuevos pisando a los
+            # publicados, así que sus índices ya son los correctos. Con la
+            # exclusión, regenerar TODOS los compilados de una banda dejaba `otros`
+            # siempre vacío y la regla 2 no podía dispararse nunca: votos que sí
+            # tenían dónde ir se anulaban como perdidos.
+            otros = [c for c in cands if c[0] != comp]
             # El mismo compilado gana; si no, el que más solape con lo votado.
             pool = mismo or otros
             if not pool:

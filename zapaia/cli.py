@@ -322,11 +322,51 @@ def cmd_compilado(a):
             g = dfw[dfw["path"] == r["Ruta"]]
             for ini, fin, sc_, tempo in compilado.tramos_dinamicos(
                     g, a.win, umbral, min_win=a.seg_win, max_win=a.max_seg_win,
-                    max_tramos=a.tramos_por_toma, col=col, hop_s=a.hop,
+                    # Con --evitar hay que pedir rachas DE MÁS: las mejores ya
+                    # las usó el perfil anterior, así que si se piden justo las
+                    # que entran, al filtrar no queda alternativa y la toma
+                    # desaparece en vez de reaparecer con otro pedazo.
+                    max_tramos=a.tramos_por_toma + (4 if a.evitar else 0),
+                    col=col, hop_s=a.hop,
                     max_silencio=a.max_silencio):
                 tramos.append((r["Ruta"], ini, fin, r["Toma"], tempo, sc_))
         if not tramos:
             sys.exit("Ninguna toma tiene una racha sobre el umbral. Bajá --umbral-q.")
+
+    # Los perfiles de un mismo período se generaban sin saber uno del otro, así que
+    # cuando ideas y balance coincidían en una toma elegían EL MISMO pedazo: entre
+    # los 12 compilados de ombu había 217 tramos idénticos repetidos. Con --evitar,
+    # la toma puede volver a aparecer, pero con otro tramo.
+    if a.evitar:
+        import json as _json_
+        usados = {}
+        for ruta in a.evitar:
+            try: man = _json_.load(open(ruta))
+            except Exception as e:
+                print(f"  (no pude leer {ruta}: {e})"); continue
+            for t in man.get("tramos", []):
+                usados.setdefault(t["toma"], []).append(
+                    (t.get("origen_ini_s", 0.0), t.get("origen_fin_s", 0.0)))
+        def _pisa(toma, ini, fin):
+            # Se considera el MISMO tramo si comparten más de la mitad del más corto.
+            for u0, u1 in usados.get(toma, []):
+                inter = min(fin, u1) - max(ini, u0)
+                if inter > 0 and inter > 0.5 * min(fin - ini, u1 - u0): return True
+            return False
+        antes = len(tramos)
+        tramos = [t for t in tramos if not _pisa(t[3], t[1], t[2])]
+        # Se pidieron rachas de más para tener con qué reemplazar; ahora sí se
+        # recorta a lo pedido, quedándose con las mejores de cada toma.
+        por_toma, corte = {}, []
+        for t in sorted(tramos, key=lambda t: -t[5]):
+            n = por_toma.get(t[3], 0)
+            if n < a.tramos_por_toma:
+                corte.append(t); por_toma[t[3]] = n + 1
+        tramos = corte
+        print(f"Evitando tramos ya usados en {len(a.evitar)} compilado(s): "
+              f"{antes} -> {len(tramos)} tramos")
+        if not tramos:
+            sys.exit("Todos los tramos ya estaban usados. Sacá --evitar o cambiá el período.")
     else:
         for _, r in d.iterrows():
             g = dfw[dfw["path"] == r["Ruta"]]
@@ -419,6 +459,11 @@ def cmd_compilado(a):
     params = (f"filtro={filtro} perfil={a.perfil} modo={a.modo} sort={a.sort_by} "
               f"{'dinamico q' + str(a.umbral_q) if a.dinamico else 'fijo ' + str(a.seg_win) + 'win'} "
               f"crossfade={crossfade}s{' tempo<=' + str(a.max_stretch) if a.ajustar_tempo else ''} "
+              # Los dos filtros de diversidad NO se registraban, así que mirando un
+              # compilado viejo no había forma de saber con qué se armó. Y importan:
+              # el tope por tema en 1 descartaba el 75% de las tomas elegibles.
+              f"max_por_tema={a.max_por_tema} diversidad={a.diversidad} "
+              f"sonido_min={a.sonido_min} min_win={a.min_win} top={a.top} "
               f"pesos=" + ",".join(f"{k}:{v}" for k, v in _pesos(a).items()))
 
     # Scores del tramo: mediana de las ventanas que lo componen (dimensiones de
@@ -969,6 +1014,9 @@ def main(argv=None):
     m.add_argument("--orden", choices=["tempo", "score"], default="tempo",
                    help="tempo = empalmes más suaves; score = de mejor a peor")
     m.add_argument("--bitrate", default="192k")
+    m.add_argument("--evitar", nargs="*", default=[], metavar="MANIFEST.json",
+                   help="no repetir los tramos ya usados en esos compilados. Una "
+                        "toma puede volver a aparecer, pero con OTRO pedazo")
     m.add_argument("--max-por-tema", type=int, default=1,
                    help="maximo de tomas del mismo tema (0 = sin tope)")
     m.add_argument("--diversidad", type=float, default=0.15,

@@ -94,6 +94,16 @@ _GENERICOS = {"nebu", "nebulosa", "zapa", "zapada", "zapadas", "demo", "test", "
               "take", "final", "version", "parte", "con", "del", "para", "por",
               "una", "las", "los", "que", "mas", "muy", "video", "audio"}
 
+# INTENTO FALLIDO, documentado para no repetirlo (26/9): se probó descartar como
+# temas las marcas del grabador ("rec0708", "rec0815") y "concat", con el
+# argumento de que no son canciones sino artefactos. Parecía obvio y MIDIÓ PEOR:
+# en ombu, con esos tokens fuera, los 8 archivos de la sesión rec0815 dejaban de
+# competir entre sí, entraban todos y desplazaban a "01.0-Basta de tiros", una
+# zapada VOTADA. La cobertura de votos bajó de 13/13 a 11/13.
+# La lección: "rec0815" no es basura, es una SESIÓN de grabación, y una toma por
+# sesión es un criterio de diversidad tan válido como una toma por canción.
+
+
 
 def _tokens(nombre):
     import re
